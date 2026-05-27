@@ -1,0 +1,37 @@
+# Weather Agent - serves mock weather data via A2A protocol
+
+- route:
+    id: weather-agent
+    from:
+      uri: a2a:classpath:agent-card.json
+      parameters:
+        oauthProfile: weather
+        validateAuth: true
+      steps:
+        - log:
+            message: "Weather agent received: ${body}"
+        - choice:
+            when:
+              - simple: "${body} contains 'forecast'"
+                steps:
+                  - setBody:
+                      expression:
+                        simple:
+                          expression: |
+                            📅 3-Day Forecast:
+                            ☀️  Today — Sunny, 24°C / 15°C, Humidity 45%
+                            ⛅ Tomorrow — Partly Cloudy, 22°C / 14°C, Humidity 55%
+                            🌧️  Day After — Light Rain, 19°C / 12°C, Humidity 70%
+            otherwise:
+              steps:
+                - setBody:
+                    expression:
+                      simple:
+                        expression: |
+                          📍 Rome, Italy
+                          🌡️  23°C (73°F)
+                          ☀️  Sunny with light breeze
+                          💧 Humidity: 42%
+                          🌬️  Wind: 12 km/h NW
+        - log:
+            message: "Weather agent response: ${body}"

@@ -1,0 +1,26 @@
+{
+  "name": "news-agent",
+  "description": "Provides latest news headlines and trending topics",
+  "version": "1.0.0",
+  "skills": [
+    {
+      "id": "headlines",
+      "name": "News Headlines",
+      "description": "Returns the latest top news headlines",
+      "tags": ["news", "headlines", "latest", "breaking"]
+    },
+    {
+      "id": "trending",
+      "name": "Trending Topics",
+      "description": "Returns currently trending topics and stories",
+      "tags": ["trending", "popular", "viral", "topics"]
+    }
+  ],
+  "securitySchemes": {
+    "oidc": {
+      "type": "openIdConnect",
+      "openIdConnectUrl": "http://localhost:8180/realms/a2a-morning-routine/.well-known/openid-configuration"
+    }
+  },
+  "security": [{"oidc": []}]
+}

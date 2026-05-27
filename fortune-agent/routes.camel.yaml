@@ -1,0 +1,21 @@
+# Fortune Cookie Agent - serves random fortune quotes via A2A protocol
+# No agent-card.json file — the card is built entirely from URI parameters
+# Secured with API key authentication (X-API-Key header)
+
+- route:
+    id: fortune-agent
+    from:
+      uri: a2a:fortune-agent
+      parameters:
+        name: Fortune Cookie
+        description: Random wisdom and humor from classic Unix fortune
+        version: 1.0.0
+        validateAuth: true
+        apiKey: "{{fortune.api-key}}"
+      steps:
+        - log:
+            message: "Fortune agent received: ${body}"
+        - setBody:
+            simple: "${bean:fortuneService?method=getRandomFortune}"
+        - log:
+            message: "Fortune agent response: ${body}"

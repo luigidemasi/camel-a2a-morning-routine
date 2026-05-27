@@ -1,0 +1,56 @@
+{
+  "realm": "a2a-morning-routine",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "weather-agent",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "weather-agent-secret",
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "publicClient": false,
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "news-agent",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "news-agent-secret",
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "publicClient": false,
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "assistant-agent",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "assistant-agent-secret",
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "publicClient": false,
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "traffic-agent",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "traffic-agent-secret",
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "publicClient": false,
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "email-agent",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "email-agent-secret",
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "publicClient": false,
+      "protocol": "openid-connect"
+    }
+  ]
+}

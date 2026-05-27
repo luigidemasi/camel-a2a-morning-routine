@@ -1,0 +1,13 @@
+# Package Tracker Agent - tracks delivery via A2A protocol
+# Uses returnImmediately + push notifications for real-time updates
+
+- route:
+    id: package-agent
+    from:
+      uri: a2a:classpath:agent-card.json
+      parameters:
+        returnImmediately: true
+        asyncTimeout: 60000
+      steps:
+        - process:
+            ref: packageDeliverySimulator

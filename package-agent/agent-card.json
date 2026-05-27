@@ -1,0 +1,13 @@
+{
+  "name": "package-agent",
+  "description": "Tracks package delivery with real-time status updates",
+  "version": "1.0.0",
+  "skills": [
+    {
+      "id": "track-package",
+      "name": "Package Tracking",
+      "description": "Tracks a package through delivery stages and sends push notifications",
+      "tags": ["package", "delivery", "tracking", "shipping"]
+    }
+  ]
+}

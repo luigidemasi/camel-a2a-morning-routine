@@ -1,0 +1,29 @@
+# Traffic Agent - calculates commute route via A2A protocol
+# Uses returnImmediately=true for async task lifecycle demo
+
+- route:
+    id: traffic-agent
+    from:
+      uri: a2a:classpath:agent-card.json
+      parameters:
+        oauthProfile: traffic
+        validateAuth: true
+        returnImmediately: true
+        asyncTimeout: 30000
+      steps:
+        - log:
+            message: "Traffic agent computing route..."
+        - delay:
+            constant: 5000
+        - setBody:
+            expression:
+              simple:
+                expression: |
+                  🚗 Commute Report:
+                  📍 Home → Office
+                  ⏱️  Estimated time: 35 minutes
+                  🛣️  Best route: Via A1 Highway
+                  🚦 Traffic: Moderate — accident cleared on SR-101
+                  🅿️  Parking: Available at Level 2
+        - log:
+            message: "Traffic agent route computed"

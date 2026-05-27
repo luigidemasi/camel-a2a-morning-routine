@@ -1,0 +1,323 @@
+# Assistant Agent - morning routine briefing via A2A
+#
+# Serves an HTML dashboard at / that calls the /morning-briefing API,
+# which queries weather and news agents in parallel via A2A and
+# aggregates their responses.
+
+# ===========================================
+# Web UI: serves the dashboard page
+# ===========================================
+- route:
+    id: dashboard
+    from:
+      uri: platform-http:/
+      parameters:
+        httpMethodRestrict: GET
+      steps:
+        - setBody:
+            simple: "${bean:dashboardPage?method=getHtml}"
+        - setHeader:
+            name: Content-Type
+            expression:
+              constant:
+                expression: text/html
+        - setHeader:
+            name: Cache-Control
+            expression:
+              constant:
+                expression: no-cache, no-store
+
+# ===========================================
+# Morning briefing API: aggregates all agents
+# ===========================================
+- route:
+    id: morning-briefing
+    from:
+      uri: platform-http:/morning-briefing
+      parameters:
+        httpMethodRestrict: GET
+      steps:
+        - log:
+            message: "Morning briefing requested"
+        - multicast:
+            parallelProcessing: true
+            aggregationStrategy: "#class:MorningBriefingAggregator"
+            steps:
+              - to:
+                  uri: direct:call-weather
+              - to:
+                  uri: direct:call-news
+              - to:
+                  uri: direct:call-fortune
+        - log:
+            message: "Morning briefing ready"
+        - setHeader:
+            name: Content-Type
+            expression:
+              constant:
+                expression: application/json
+
+# ===========================================
+# A2A calls to downstream agents
+# ===========================================
+- route:
+    id: call-weather
+    from:
+      uri: direct:call-weather
+      steps:
+        - removeHeaders:
+            pattern: "*"
+        - setBody:
+            constant: "What is the weather like?"
+        - to:
+            uri: a2a:http://localhost:8080
+            parameters:
+              oauthProfile: assistant
+        - setBody:
+            simple: "${body} ~> ${a2aText()}"
+        - log:
+            message: "Weather agent replied: ${body}"
+
+- route:
+    id: call-news
+    from:
+      uri: direct:call-news
+      steps:
+        - removeHeaders:
+            pattern: "*"
+        - setBody:
+            constant: "What are the latest headlines?"
+        - to:
+            uri: a2a:http://localhost:8081
+            parameters:
+              oauthProfile: assistant
+              protocolBinding: jsonrpc
+        - setBody:
+            simple: "${body} ~> ${a2aText()}"
+        - log:
+            message: "News agent replied: ${body}"
+
+- route:
+    id: call-fortune
+    from:
+      uri: direct:call-fortune
+      steps:
+        - removeHeaders:
+            pattern: "*"
+        - setBody:
+            constant: "Give me a fortune cookie"
+        - to:
+            uri: a2a:http://localhost:8082
+            parameters:
+              apiKey: LU6NiAYEsEvKsL-KsQvw-6w6x3pYyR37kvLtsyQRpm4
+        - setBody:
+            simple: "${body} ~> ${a2aText()}"
+        - log:
+            message: "Fortune agent replied: ${body}"
+
+# ===========================================
+# Traffic async API: submit + poll
+# ===========================================
+- route:
+    id: traffic-submit
+    from:
+      uri: platform-http:/traffic-submit
+      parameters:
+        httpMethodRestrict: GET
+      steps:
+        - removeHeaders:
+            pattern: "*"
+        - setBody:
+            constant: "What's my commute?"
+        - to:
+            uri: a2a:http://localhost:8083
+            parameters:
+              oauthProfile: assistant
+        - log:
+            message: "Traffic task submitted: ${body.id}, status: ${body.status}"
+        - setBody:
+            simple: "${bean:trafficStatusExtractor?method=extractStatus}"
+        - setHeader:
+            name: Content-Type
+            expression:
+              constant:
+                expression: application/json
+
+- route:
+    id: traffic-status
+    from:
+      uri: platform-http:/traffic-status
+      parameters:
+        httpMethodRestrict: GET
+      steps:
+        - setVariable:
+            name: taskId
+            simple: "${header.taskId}"
+        - removeHeaders:
+            pattern: "*"
+        - setHeader:
+            name: CamelA2AOperation
+            constant: GetTask
+        - setHeader:
+            name: CamelA2ATaskId
+            simple: "${variable.taskId}"
+        - to:
+            uri: a2a:http://localhost:8083
+            parameters:
+              oauthProfile: assistant
+        - log:
+            message: "Traffic task ${variable.taskId} status: ${body.status.state}"
+        - setBody:
+            simple: "${bean:trafficStatusExtractor?method=extractStatus}"
+        - setHeader:
+            name: Content-Type
+            expression:
+              constant:
+                expression: application/json
+
+# ===========================================
+# Email digest SSE proxy
+# ===========================================
+- route:
+    id: email-stream
+    from:
+      uri: platform-http:/email-stream
+      parameters:
+        httpMethodRestrict: GET
+      steps:
+        - removeHeaders:
+            pattern: "*"
+        - setBody:
+            constant: "Show me my email digest"
+        - setHeader:
+            name: CamelA2AOperation
+            constant: MESSAGE_STREAM
+        - to:
+            uri: a2a:http://localhost:8084
+            parameters:
+              protocolBinding: jsonrpc
+        - log:
+            message: "Email stream completed"
+        - setBody:
+            simple: "${bean:emailSseSerializer?method=serialize}"
+        - setHeader:
+            name: Content-Type
+            expression:
+              constant:
+                expression: text/event-stream
+
+# ===========================================
+# Package tracker push notification API
+# ===========================================
+- route:
+    id: package-track
+    from:
+      uri: platform-http:/package-track
+      parameters:
+        httpMethodRestrict: GET
+      steps:
+        - removeHeaders:
+            pattern: "*"
+        - setBody:
+            constant: "Track my package"
+        - to:
+            uri: a2a:http://localhost:8085
+        - setVariable:
+            name: taskId
+            simple: "${body.id}"
+        - log:
+            message: "Package task submitted: ${variable.taskId}"
+        - removeHeaders:
+            pattern: "*"
+        - setHeader:
+            name: CamelA2AOperation
+            constant: PUSH_CONFIG_CREATE
+        - setHeader:
+            name: CamelA2ATaskId
+            simple: "${variable.taskId}"
+        - setBody:
+            simple: "${bean:pushConfigBuilder?method=build}"
+        - to:
+            uri: a2a:http://localhost:8085
+        - log:
+            message: "Push notification registered for task ${variable.taskId}"
+        - setBody:
+            expression:
+              simple:
+                expression: '{"taskId": "${variable.taskId}", "status": "SUBMITTED"}'
+        - setHeader:
+            name: Content-Type
+            expression:
+              constant:
+                expression: application/json
+
+- route:
+    id: package-webhook
+    from:
+      uri: platform-http:/package-webhook
+      parameters:
+        httpMethodRestrict: POST
+      steps:
+        - convertBodyTo:
+            type: String
+        - log:
+            message: "Package webhook received: ${body}"
+        - process:
+            ref: packageWebhookProcessor
+        - setBody:
+            constant: '{"status": "ok"}'
+        - setHeader:
+            name: Content-Type
+            expression:
+              constant:
+                expression: application/json
+
+- route:
+    id: package-status
+    from:
+      uri: platform-http:/package-status
+      parameters:
+        httpMethodRestrict: GET
+      steps:
+        - setVariable:
+            name: taskId
+            simple: "${header.taskId}"
+        - setBody:
+            simple: "${bean:packageStatusStore?method=getStatusJson(${variable.taskId})}"
+        - setHeader:
+            name: Content-Type
+            expression:
+              constant:
+                expression: application/json
+
+# ===========================================
+# List registered agents
+# ===========================================
+- route:
+    id: list-agents
+    from:
+      uri: platform-http:/agents
+      parameters:
+        httpMethodRestrict: GET
+      steps:
+        - log:
+            message: "Listing registered agents"
+        - setBody:
+            expression:
+              simple:
+                expression: |
+                  {
+                    "agents": [
+                      {"url": "http://localhost:8080", "card": "http://localhost:8080/.well-known/agent-card.json"},
+                      {"url": "http://localhost:8081", "card": "http://localhost:8081/.well-known/agent-card.json"},
+                      {"url": "http://localhost:8082", "card": "http://localhost:8082/.well-known/agent-card.json"},
+                      {"url": "http://localhost:8083", "card": "http://localhost:8083/.well-known/agent-card.json"},
+                      {"url": "http://localhost:8084", "card": "http://localhost:8084/.well-known/agent-card.json"},
+                      {"url": "http://localhost:8085", "card": "http://localhost:8085/.well-known/agent-card.json"}
+                    ]
+                  }
+        - setHeader:
+            name: Content-Type
+            expression:
+              constant:
+                expression: application/json

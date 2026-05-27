@@ -1,0 +1,41 @@
+# News Agent - serves mock news headlines via A2A protocol
+
+- route:
+    id: news-agent
+    from:
+      uri: a2a:classpath:agent-card.json
+      parameters:
+        oauthProfile: news
+        validateAuth: true
+        protocolBinding: jsonrpc
+      steps:
+        - log:
+            message: "News agent received: ${body}"
+        - choice:
+            when:
+              - simple: "${body} contains 'trending'"
+                steps:
+                  - setBody:
+                      expression:
+                        simple:
+                          expression: |
+                            🔥 Trending Topics:
+                            1. 🤖 AI Agent Interoperability — A2A protocol gains momentum
+                            2. 🐫 Open Source Integration — Apache Camel 4.21 released
+                            3. ☁️ Cloud Native Development — Kubernetes 1.32 features
+                            4. 🌱 Green Energy — Solar panel efficiency breakthrough
+                            5. 🚀 Space Exploration — Mars mission update
+            otherwise:
+              steps:
+                - setBody:
+                    expression:
+                      simple:
+                        expression: |
+                          📰 Top Headlines:
+                          1. 💻 A2A Protocol enables seamless agent-to-agent communication
+                          2. 🔬 New quantum computing milestone achieved
+                          3. 📈 Global markets reach new highs on AI optimism
+                          4. 🏥 Breakthrough in personalized medicine announced
+                          5. ⚽ Champions League final set for next month
+        - log:
+            message: "News agent response: ${body}"

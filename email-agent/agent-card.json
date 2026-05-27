@@ -1,0 +1,13 @@
+{
+  "name": "email-agent",
+  "description": "Scans inbox and provides a prioritized email digest",
+  "version": "1.0.0",
+  "skills": [
+    {
+      "id": "inbox-digest",
+      "name": "Inbox Digest",
+      "description": "Scans inbox, prioritizes messages, and returns a categorized digest",
+      "tags": ["email", "inbox", "digest", "messages"]
+    }
+  ]
+}

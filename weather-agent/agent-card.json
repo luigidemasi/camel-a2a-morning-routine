@@ -1,0 +1,26 @@
+{
+  "name": "weather-agent",
+  "description": "Provides current weather and forecast information for any city",
+  "version": "1.0.0",
+  "skills": [
+    {
+      "id": "current-weather",
+      "name": "Current Weather",
+      "description": "Returns current weather conditions for a given city including temperature, humidity, and conditions",
+      "tags": ["weather", "temperature", "conditions", "current"]
+    },
+    {
+      "id": "forecast",
+      "name": "Weather Forecast",
+      "description": "Returns a 3-day weather forecast for a given city",
+      "tags": ["weather", "forecast", "prediction", "upcoming"]
+    }
+  ],
+  "securitySchemes": {
+    "oidc": {
+      "type": "openIdConnect",
+      "openIdConnectUrl": "http://localhost:8180/realms/a2a-morning-routine/.well-known/openid-configuration"
+    }
+  },
+  "security": [{"oidc": []}]
+}

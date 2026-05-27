@@ -1,0 +1,14 @@
+# Email Digest Agent - scans inbox via A2A protocol
+# Uses A2AStreamEmitter for SSE streaming demo
+# JSON-RPC binding to work around Vert.x colon-in-path issue with REST
+# No auth — assistant proxies the SSE stream to the browser
+
+- route:
+    id: email-agent
+    from:
+      uri: a2a:classpath:agent-card.json
+      parameters:
+        protocolBinding: jsonrpc
+      steps:
+        - process:
+            ref: emailDigestProcessor

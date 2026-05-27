@@ -1,0 +1,20 @@
+{
+  "name": "traffic-agent",
+  "description": "Calculates optimal commute route with real-time traffic",
+  "version": "1.0.0",
+  "skills": [
+    {
+      "id": "commute",
+      "name": "Commute Report",
+      "description": "Returns optimal route, estimated time, and traffic conditions",
+      "tags": ["traffic", "commute", "route", "directions"]
+    }
+  ],
+  "securitySchemes": {
+    "oidc": {
+      "type": "openIdConnect",
+      "openIdConnectUrl": "http://localhost:8180/realms/a2a-morning-routine/.well-known/openid-configuration"
+    }
+  },
+  "security": [{"oidc": []}]
+}
