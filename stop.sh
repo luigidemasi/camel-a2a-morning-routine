@@ -9,6 +9,14 @@ echo -e "🛑 Stopping all Camel agents..."
 jbang camel@apache/camel stop  2>/dev/null
 echo -e "   ${GREEN}✔ All agents stopped${RESET}"
 
+echo -e "🌐 Stopping Dashboard BFF..."
+if [ -f "$(dirname "$0")/dashboard/.dashboard.pid" ]; then
+    kill "$(cat "$(dirname "$0")/dashboard/.dashboard.pid")" 2>/dev/null
+    rm -f "$(dirname "$0")/dashboard/.dashboard.pid"
+fi
+pkill -f 'tsx.*dashboard' 2>/dev/null
+echo -e "   ${GREEN}✔ Dashboard stopped${RESET}"
+
 echo -e "🔐 Stopping Keycloak..."
 podman compose -f "$(dirname "$0")/podman-compose.yml" down 2>/dev/null
 echo -e "   ${GREEN}✔ Keycloak stopped${RESET}"

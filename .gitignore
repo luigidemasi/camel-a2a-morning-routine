@@ -1,3 +1,6 @@
 *.class
 .idea/
 .camel-jbang/
+assistant/a2a-sdk/node_modules/
+dashboard/node_modules/
+dashboard/.dashboard.pid

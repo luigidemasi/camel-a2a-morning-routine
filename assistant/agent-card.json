@@ -1,0 +1,24 @@
+{
+  "name": "morning-routine-assistant",
+  "description": "Orchestrates weather, news, and fortune agents into a morning briefing",
+  "url": "http://localhost:8090",
+  "version": "1.0.0",
+  "supportedInterfaces": [
+    {
+      "url": "http://localhost:8090",
+      "protocolBinding": "JSONRPC",
+      "protocolVersion": "1.0"
+    }
+  ],
+  "capabilities": {
+    "streaming": false
+  },
+  "skills": [
+    {
+      "id": "morning-briefing",
+      "name": "Morning Briefing",
+      "description": "Aggregates weather, news, and fortune into a single briefing",
+      "tags": ["briefing", "weather", "news", "fortune"]
+    }
+  ]
+}

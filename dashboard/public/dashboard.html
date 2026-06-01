@@ -83,7 +83,7 @@
 
     .icon-weather { background: linear-gradient(135deg, #ffecd2, #fcb69f); }
     .icon-news { background: linear-gradient(135deg, #a1c4fd, #c2e9fb); }
-    .icon-fortune { background: linear-gradient(135deg, #fbc2eb, #f6d5a8); }
+    .icon-fortune { background: linear-gradient(135deg, #89f7fe, #66a6ff); }
     .icon-traffic { background: linear-gradient(135deg, #d4fc79, #96e6a1); }
     .icon-email { background: linear-gradient(135deg, #e0c3fc, #8ec5fc); }
     .icon-package { background: linear-gradient(135deg, #ffeaa7, #fdcb6e); }
@@ -168,7 +168,6 @@
       font-style: italic;
       font-size: 1em;
       color: #555;
-      text-align: center;
       padding: 8px 20px;
       line-height: 1.8;
     }
@@ -309,7 +308,7 @@
     </div>
 
     <div id="briefing-fortune" class="card card-fortune hidden">
-      <div class="card-header" style="justify-content: center;">
+      <div class="card-header">
         <div class="card-icon icon-fortune">&#129376;</div>
         <div>
           <div class="card-title">Fortune Cookie</div>
@@ -318,6 +317,7 @@
       </div>
       <div class="card-badges">
         <span class="card-label label-auth">API Key</span>
+        <span class="card-label label-protocol">REST</span>
         <span class="card-label label-feature">Card from Params</span>
         <span class="card-label label-pattern">Parallel Multicast</span>
       </div>
@@ -357,7 +357,7 @@
         <span class="card-label label-auth">No Auth</span>
         <span class="card-label label-protocol">JSON-RPC</span>
         <span class="card-label label-feature">a2a-js SDK</span>
-        <span class="card-label label-pattern">Direct to Agent</span>
+        <span class="card-label label-pattern">SSE Streaming</span>
       </div>
       <div class="card-body">
         <div class="card-content" id="email-content"></div>
@@ -392,12 +392,11 @@
   <div class="toast-container" id="toast-container"></div>
 
   <footer>
-    Powered by Apache Camel A2A
+    Powered by Apache Camel A2A + Node.js BFF
     <br>
     <button class="refresh-btn" onclick="loadBriefing()">&#8635; Refresh briefing</button>
   </footer>
 
-  <script src="a2a-sdk.bundle.js"></script>
   <script>
     document.getElementById('date').textContent =
       new Date().toLocaleDateString('en-US', {
@@ -432,7 +431,7 @@
       document.getElementById('briefing-package').classList.add('hidden');
       document.getElementById('error').classList.add('hidden');
 
-      fetch('/morning-briefing')
+      fetch('/api/morning-briefing')
         .then(function(res) {
           if (!res.ok) throw new Error('HTTP ' + res.status);
           return res.json();
@@ -462,7 +461,7 @@
       document.getElementById('traffic-subtitle').textContent = 'Connecting to agent';
       document.getElementById('briefing-traffic').classList.remove('hidden');
 
-      fetch('/traffic-submit')
+      fetch('/api/traffic-submit')
         .then(function(res) {
           if (!res.ok) throw new Error('HTTP ' + res.status);
           return res.json();
@@ -495,7 +494,7 @@
       }
 
       setTimeout(function() {
-        fetch('/traffic-status?taskId=' + encodeURIComponent(taskId))
+        fetch('/api/traffic-status?taskId=' + encodeURIComponent(taskId))
           .then(function(res) {
             if (!res.ok) throw new Error('HTTP ' + res.status);
             return res.json();
@@ -505,7 +504,7 @@
             document.getElementById('traffic-subtitle').textContent =
               statusLabels[state] || state;
             if (state === 'TASK_STATE_COMPLETED') {
-              document.getElementById('traffic-content').textContent = '✅ Route calculated!';
+              document.getElementById('traffic-content').textContent = 'Route calculated!';
               setTimeout(function() {
                 document.getElementById('traffic-content').textContent = extractTaskText(data) || 'Route calculated';
                 document.getElementById('traffic-subtitle').textContent = "Today's route";
@@ -525,55 +524,58 @@
       }, 1000);
     }
 
-    async function loadEmail() {
+    function loadEmail() {
       var content = document.getElementById('email-content');
       content.textContent = '';
       document.getElementById('email-subtitle').textContent = 'Connecting to inbox';
       document.getElementById('briefing-email').classList.remove('hidden');
 
-      try {
-        var factory = new A2A.ClientFactory();
-        var client = await factory.createFromUrl('http://localhost:8084');
-        var message = {
-          kind: 'message',
-          messageId: crypto.randomUUID(),
-          role: 'user',
-          parts: [{ kind: 'text', text: 'Show me my email digest' }]
-        };
+      var source = new EventSource('/api/email-stream');
 
-        for await (var event of client.sendMessageStream({ message: message })) {
-          if (event.kind === 'status-update' && event.status && event.status.message) {
-            var parts = event.status.message.parts;
-            if (parts && parts.length > 0 && parts[0].text) {
-              var text = parts[0].text;
-              if (content.textContent.length > 0) content.textContent += '\n';
-              content.textContent += text;
-              document.getElementById('email-subtitle').textContent = text;
+      source.onmessage = function(e) {
+        try {
+          var event = JSON.parse(e.data);
+          if (event.statusUpdate) {
+            var status = event.statusUpdate.status;
+            if (status && status.message) {
+              var parts = status.message.parts;
+              if (parts && parts.length > 0 && parts[0].text) {
+                var text = parts[0].text;
+                if (content.textContent.length > 0) content.textContent += '\n';
+                content.textContent += text;
+                document.getElementById('email-subtitle').textContent = text;
+              }
             }
-          } else if (event.kind === 'status-update' && event.status && event.status.state === 'completed') {
-            document.getElementById('email-subtitle').textContent = "Today's inbox";
-          } else if (event.kind === 'artifact-update' && event.artifact && event.artifact.parts) {
-            var artifactParts = event.artifact.parts;
-            if (artifactParts.length > 0 && artifactParts[0].text) {
+          } else if (event.message) {
+            var msg = event.message;
+            if (msg.parts && msg.parts.length > 0 && msg.parts[0].text) {
               document.getElementById('email-subtitle').textContent = 'Digest ready!';
+              var digestText = msg.parts[0].text;
               setTimeout(function() {
-                content.textContent = artifactParts[0].text;
+                content.textContent = digestText;
                 document.getElementById('email-subtitle').textContent = "Today's inbox";
               }, 1000);
             }
-          } else if (event.kind === 'message' && event.parts && event.parts.length > 0) {
-            document.getElementById('email-subtitle').textContent = 'Digest ready!';
-            setTimeout(function() {
-              content.textContent = event.parts[0].text;
-              document.getElementById('email-subtitle').textContent = "Today's inbox";
-            }, 1000);
           }
+        } catch (err) {
+          console.error('SSE parse error:', err);
         }
-      } catch (err) {
-        console.error('Email agent error:', err);
-        content.textContent = 'Could not reach email agent';
-        document.getElementById('email-subtitle').textContent = 'Error';
-      }
+      };
+
+      source.addEventListener('done', function() {
+        source.close();
+        if (!content.textContent) {
+          document.getElementById('email-subtitle').textContent = "Today's inbox";
+        }
+      });
+
+      source.onerror = function() {
+        source.close();
+        if (!content.textContent) {
+          content.textContent = 'Could not reach email agent';
+          document.getElementById('email-subtitle').textContent = 'Error';
+        }
+      };
     }
 
     function showToast(text) {
@@ -594,7 +596,7 @@
       document.getElementById('package-subtitle').textContent = 'Connecting to agent';
       document.getElementById('briefing-package').classList.remove('hidden');
 
-      fetch('/package-track')
+      fetch('/api/package-track')
         .then(function(res) {
           if (!res.ok) throw new Error('HTTP ' + res.status);
           return res.json();
@@ -616,7 +618,7 @@
       }
 
       setTimeout(function() {
-        fetch('/package-status?taskId=' + encodeURIComponent(taskId))
+        fetch('/api/package-status?taskId=' + encodeURIComponent(taskId))
           .then(function(res) {
             if (!res.ok) throw new Error('HTTP ' + res.status);
             return res.json();

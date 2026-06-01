@@ -17,7 +17,7 @@
                 steps:
                   - setBody:
                       expression:
-                        simple:
+                        constant:
                           expression: |
                             🔥 Trending Topics:
                             1. 🤖 AI Agent Interoperability — A2A protocol gains momentum
@@ -29,7 +29,7 @@
               steps:
                 - setBody:
                     expression:
-                      simple:
+                      constant:
                         expression: |
                           📰 Top Headlines:
                           1. 💻 A2A Protocol enables seamless agent-to-agent communication

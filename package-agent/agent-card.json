@@ -1,7 +1,12 @@
 {
   "name": "package-agent",
   "description": "Tracks package delivery with real-time status updates",
+  "url": "http://localhost:8085",
+  "supportedInterfaces": [{"url": "http://localhost:8085", "protocolBinding": "HTTP+JSON", "protocolVersion": "1.0"}],
   "version": "1.0.0",
+  "capabilities": {
+    "pushNotifications": true
+  },
   "skills": [
     {
       "id": "track-package",

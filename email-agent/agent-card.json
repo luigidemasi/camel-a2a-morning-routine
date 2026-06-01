@@ -1,7 +1,12 @@
 {
   "name": "email-agent",
   "description": "Scans inbox and provides a prioritized email digest",
+  "url": "http://localhost:8084",
+  "supportedInterfaces": [{"url": "http://localhost:8084", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
   "version": "1.0.0",
+  "capabilities": {
+    "streaming": true
+  },
   "skills": [
     {
       "id": "inbox-digest",

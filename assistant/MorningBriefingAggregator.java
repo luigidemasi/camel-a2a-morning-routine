@@ -1,10 +1,15 @@
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.camel.AggregationStrategy;
 import org.apache.camel.Exchange;
 
 public class MorningBriefingAggregator implements AggregationStrategy {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Override
     public Exchange aggregate(Exchange oldExchange, Exchange newExchange) {
@@ -20,26 +25,17 @@ public class MorningBriefingAggregator implements AggregationStrategy {
         responses.add(newExchange.getIn().getBody(String.class));
 
         if (responses.size() == 3) {
-            String json = """
-                    {"weather": "%s", "news": "%s", "fortune": "%s"}"""
-                    .formatted(
-                            escapeJson(responses.get(0)),
-                            escapeJson(responses.get(1)),
-                            escapeJson(responses.get(2)));
-            oldExchange.getIn().setBody(json);
+            try {
+                Map<String, String> result = new LinkedHashMap<>();
+                result.put("weather", responses.get(0));
+                result.put("news", responses.get(1));
+                result.put("fortune", responses.get(2));
+                oldExchange.getIn().setBody(MAPPER.writeValueAsString(result));
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to serialize briefing", e);
+            }
         }
 
         return oldExchange;
-    }
-
-    private String escapeJson(String text) {
-        if (text == null) {
-            return "";
-        }
-        return text.replace("\\", "\\\\")
-                   .replace("\"", "\\\"")
-                   .replace("\n", "\\n")
-                   .replace("\r", "\\r")
-                   .replace("\t", "\\t");
     }
 }

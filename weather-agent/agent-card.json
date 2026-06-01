@@ -1,6 +1,8 @@
 {
   "name": "weather-agent",
   "description": "Provides current weather and forecast information for any city",
+  "url": "http://localhost:8080",
+  "supportedInterfaces": [{"url": "http://localhost:8080", "protocolBinding": "HTTP+JSON", "protocolVersion": "1.0"}],
   "version": "1.0.0",
   "skills": [
     {

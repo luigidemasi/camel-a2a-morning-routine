@@ -1,7 +1,9 @@
+# camel-jbang: dependency=mvn:org.apache.camel:camel-a2a:4.21.0-SNAPSHOT
+# camel-jbang: dependency=camel:undertow
+#
 # Email Digest Agent - scans inbox via A2A protocol
-# Uses A2AStreamEmitter for SSE streaming demo
-# JSON-RPC binding to work around Vert.x colon-in-path issue with REST
-# No auth — assistant proxies the SSE stream to the browser
+# Pure YAML agent using ${a2a:emit()} for SSE streaming
+# Uses Undertow for real-time SSE streaming
 
 - route:
     id: email-agent
@@ -9,6 +11,41 @@
       uri: a2a:classpath:agent-card.json
       parameters:
         protocolBinding: jsonrpc
+        httpServerComponent: undertow
       steps:
-        - process:
-            ref: emailDigestProcessor
+        - script:
+            simple: "${a2a:emit('📧 Connecting to inbox...')}"
+        - delay:
+            simple: ${random(1500, 4500)}
+        - script:
+            simple: "${a2a:emit('📬 Found 12 unread messages...')}"
+        - delay:
+            simple: ${random(1500, 4500)}
+        - script:
+            simple: "${a2a:emit('🔍 Prioritizing by sender and subject...')}"
+        - delay:
+            simple: ${random(1500, 4500)}
+        - script:
+            simple: "${a2a:emit('⚡ 3 urgent, 5 normal, 4 low priority')}"
+        - delay:
+            simple: ${random(1500, 4500)}
+        - setBody:
+            constant: |
+              📧 Email Digest:
+              ⚡ URGENT:
+                1. 🔴 VP Engineering — Q3 planning meeting moved to 10am
+                2. 🔴 Security Team — Critical patch deployment today
+                3. 🔴 HR — Benefits enrollment deadline tomorrow
+
+              📋 NORMAL:
+                4. Project Atlas — Sprint review notes
+                5. Design Team — New mockups ready for review
+                6. DevOps — Kubernetes upgrade scheduled
+                7. Marketing — Newsletter draft for approval
+                8. Finance — Expense report reminder
+
+              📭 LOW:
+                9. Community — Open source meetup next week
+                10. Newsletter — Tech digest weekly
+                11. Alerts — 4 GitHub notifications
+                12. Promo — Cloud credits expiring

@@ -9,5 +9,27 @@
         returnImmediately: true
         asyncTimeout: 60000
       steps:
-        - process:
-            ref: packageDeliverySimulator
+        - delay:
+             simple: ${random(1500, 4500)}
+        - script:
+            simple: "${a2a:emit('📦 Package picked up from warehouse')}"
+        - delay:
+             simple: ${random(1500, 4500)}
+        - script:
+            simple: "${a2a:emit('🚚 In transit — en route to distribution center')}"
+        - delay:
+             simple: ${random(1500, 4500)}
+        - script:
+            simple: "${a2a:emit('🏪 At local distribution center')}"
+        - delay:
+            simple: ${random(1500, 4500)}
+        - script:
+            simple: "${a2a:emit('🛵 Out for delivery')}"
+        - delay:
+            simple: "${random(1500, 4500)}"
+        - script:
+            simple: "${a2a:emit('✅ Delivered! Left at front door')}"
+        - delay:
+            simple: "${random(1500, 4500)}"
+        - setBody:
+            constant: "📦 Package delivered successfully! Left at front door."

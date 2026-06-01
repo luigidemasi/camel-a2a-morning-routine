@@ -10,7 +10,8 @@ RESET='\033[0m'
 CAMEL_VERSION="${CAMEL_VERSION:-4.21.0-SNAPSHOT}"
 A2A_DEP="--dep=org.apache.camel:camel-a2a:$CAMEL_VERSION"
 OAUTH_DEP="--dep=org.apache.camel:camel-oauth:$CAMEL_VERSION"
-CAMEL="jbang camel@apache/camel run --camel-version=$CAMEL_VERSION"
+CAMEL_JBANG="${CAMEL_JBANG:-camel@apache/camel}"
+CAMEL="jbang $CAMEL_JBANG run --camel-version=$CAMEL_VERSION"
 
 echo ""
 echo -e "${BOLD}🐫 A2A Morning Routine${RESET}"
@@ -78,6 +79,17 @@ cd ..
 echo -e "   ${DIM}Waiting for assistant to start...${RESET}"
 sleep 5
 
+echo -e "🌐 Starting Dashboard BFF on port ${CYAN}3000${RESET}..."
+cd dashboard
+if [ ! -d node_modules ]; then
+    npm install --silent 2>/dev/null
+fi
+npm start &
+DASHBOARD_PID=$!
+echo $DASHBOARD_PID > .dashboard.pid
+cd ..
+sleep 2
+
 echo ""
 jbang camel@apache/camel ps
 
@@ -87,19 +99,18 @@ echo -e "${GREEN}${BOLD}  ✅ A2A Morning Routine is running!${RESET}"
 echo -e "${GREEN}${BOLD}══════════════════════════════════════════${RESET}"
 echo ""
 echo -e "${BOLD}📋 Agent Cards${RESET}"
-echo -e "   🌤️  Weather  ${CYAN}http://localhost:8080/.well-known/agent-card.json${RESET}"
-echo -e "   📰 News     ${CYAN}http://localhost:8081/.well-known/agent-card.json${RESET}"
-echo -e "   🥠 Fortune  ${CYAN}http://localhost:8082/.well-known/agent-card.json${RESET}  ${DIM}(card from params, API key auth)${RESET}"
-echo -e "   🚗 Traffic  ${CYAN}http://localhost:8083/.well-known/agent-card.json${RESET}  ${DIM}(async, returnImmediately)${RESET}"
-echo -e "   📧 Email    ${CYAN}http://localhost:8084/.well-known/agent-card.json${RESET}  ${DIM}(SSE streaming)${RESET}"
-echo -e "   📦 Package  ${CYAN}http://localhost:8085/.well-known/agent-card.json${RESET}  ${DIM}(push notifications, no auth)${RESET}"
+echo -e "   🌤️  Weather     ${CYAN}http://localhost:8080/.well-known/agent-card.json${RESET}"
+echo -e "   📰 News        ${CYAN}http://localhost:8081/.well-known/agent-card.json${RESET}"
+echo -e "   🥠 Fortune     ${CYAN}http://localhost:8082/.well-known/agent-card.json${RESET}  ${DIM}(API key auth)${RESET}"
+echo -e "   🚗 Traffic     ${CYAN}http://localhost:8083/.well-known/agent-card.json${RESET}  ${DIM}(OIDC, returnImmediately)${RESET}"
+echo -e "   📧 Email       ${CYAN}http://localhost:8084/.well-known/agent-card.json${RESET}  ${DIM}(SSE streaming)${RESET}"
+echo -e "   📦 Package     ${CYAN}http://localhost:8085/.well-known/agent-card.json${RESET}  ${DIM}(push notifications)${RESET}"
+echo -e "   🤖 Assistant   ${CYAN}http://localhost:8090/.well-known/agent-card.json${RESET}  ${DIM}(A2A orchestrator)${RESET}"
 echo ""
 echo -e "${BOLD}☕ Morning Briefing${RESET}"
-echo -e "   Dashboard  ${CYAN}http://localhost:8090/${RESET}"
-echo -e "   API        ${CYAN}http://localhost:8090/morning-briefing${RESET}"
-echo -e "   Agents     ${CYAN}http://localhost:8090/agents${RESET}"
+echo -e "   Dashboard  ${CYAN}http://localhost:3000/${RESET}"
+echo -e "   BFF API    ${CYAN}http://localhost:3000/api/morning-briefing${RESET}"
 echo ""
 echo -e "${BOLD}🚀 Try it${RESET}"
-echo -e "   ${DIM}Open http://localhost:8090/ in your browser${RESET}"
-echo -e "   ${DIM}curl -s http://localhost:8090/morning-briefing | jq${RESET}"
+echo -e "   ${DIM}Open http://localhost:3000/ in your browser${RESET}"
 echo ""

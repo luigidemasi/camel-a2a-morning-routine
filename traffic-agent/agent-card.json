@@ -1,6 +1,8 @@
 {
   "name": "traffic-agent",
   "description": "Calculates optimal commute route with real-time traffic",
+  "url": "http://localhost:8083",
+  "supportedInterfaces": [{"url": "http://localhost:8083", "protocolBinding": "HTTP+JSON", "protocolVersion": "1.0"}],
   "version": "1.0.0",
   "skills": [
     {
