@@ -14,8 +14,8 @@
         apiKey: "{{fortune.api-key}}"
       steps:
         - log:
-            message: "Fortune agent received: ${body}"
+            message: "${a2a:card.name} received: ${body}"
         - setBody:
             simple: "${bean:fortuneService?method=getRandomFortune}"
         - log:
-            message: "Fortune agent response: ${body}"
+            message: "${a2a:card.name} response: ${body}"

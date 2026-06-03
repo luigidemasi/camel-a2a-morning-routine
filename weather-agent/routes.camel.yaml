@@ -1,4 +1,5 @@
 # Weather Agent - serves mock weather data via A2A protocol
+# Uses dataFormat=POJO: body is the full Message object, use ${a2a:text} to extract text content
 
 - route:
     id: weather-agent
@@ -7,12 +8,13 @@
       parameters:
         oauthProfile: weather
         validateAuth: true
+        dataFormat: POJO
       steps:
         - log:
-            message: "Weather agent received: ${body}"
+            message: "${a2a:card.name} received: ${a2a:text}"
         - choice:
             when:
-              - simple: "${body} contains 'forecast'"
+              - simple: "${a2a:text} contains 'forecast'"
                 steps:
                   - setBody:
                       expression:
@@ -34,4 +36,4 @@
                           💧 Humidity: 42%
                           🌬️  Wind: 12 km/h NW
         - log:
-            message: "Weather agent response: ${body}"
+            message: "${a2a:card.name} response: ${body}"

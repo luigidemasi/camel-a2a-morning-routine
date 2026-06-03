@@ -10,7 +10,7 @@
         protocolBinding: jsonrpc
       steps:
         - log:
-            message: "News agent received: ${body}"
+            message: "${a2a:card.name} received: ${body}"
         - choice:
             when:
               - simple: "${body} contains 'trending'"
@@ -38,4 +38,4 @@
                           4. 🏥 Breakthrough in personalized medicine announced
                           5. ⚽ Champions League final set for next month
         - log:
-            message: "News agent response: ${body}"
+            message: "${a2a:card.name} response: ${body}"

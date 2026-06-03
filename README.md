@@ -6,13 +6,13 @@ A comprehensive demo showcasing the [A2A protocol](https://a2a-protocol.org) wit
 
 | Agent | Port | Feature Showcased | Auth | Protocol |
 |-------|------|-------------------|------|----------|
-| Weather | 8080 | A2A Consumer + Producer | OIDC | REST |
+| Weather | 8080 | `dataFormat=POJO` + `${a2a:text}` extraction | OIDC | REST |
 | News | 8081 | JSON-RPC protocol binding | OIDC | JSON-RPC |
 | Fortune | 8082 | Card from URI parameters (no JSON file) | API Key | REST |
-| Traffic | 8083 | Async task lifecycle (`returnImmediately` + `GetTask` polling) | OIDC | REST |
+| Traffic | 8083 | Async task lifecycle + `maxConcurrentTasks` capacity limiting | OIDC | REST |
 | Email | 8084 | SSE streaming via `${a2a:emit()}` | None | JSON-RPC |
 | Package | 8085 | Push notifications via webhooks | None | REST |
-| Assistant | 8090 | Parallel multicast orchestration | OIDC (outbound) | JSON-RPC |
+| Assistant | 8090 | Parallel multicast orchestration + `historyLength` | OIDC (outbound) | JSON-RPC |
 | Dashboard BFF | 3000 | A2A JS SDK client — async polling, SSE streaming, push webhooks | OIDC | — |
 
 ## Architecture
@@ -67,20 +67,114 @@ graph TB
 
 ## Agents
 
-- **Weather Agent** (port 8080) — Returns mock weather data and forecasts. Demonstrates the basic **A2A consumer endpoint** with OIDC auth and REST protocol.
-- **News Agent** (port 8081) — Returns mock news headlines and trending topics. Demonstrates **JSON-RPC 2.0 protocol binding** — same A2A semantics, different wire format, single config change.
-- **Fortune Agent** (port 8082) — Returns random fortune cookie quotes from classic Unix `fortune` data. Demonstrates **card built from URI parameters** (no `agent-card.json` file) and **API key authentication**.
-- **Traffic Agent** (port 8083) — Returns mock commute data after a simulated delay. Demonstrates the **async task lifecycle**: `returnImmediately=true` returns a SUBMITTED task instantly, the BFF polls with `getTask` until the task completes.
-- **Email Agent** (port 8084) — Scans inbox and provides a prioritized email digest. Demonstrates **SSE streaming** via `${a2a:emit()}` in YAML — the agent emits progressive status events ("Connecting to inbox...", "Found 12 messages...", "Prioritizing...") during processing. No authentication.
-- **Package Agent** (port 8085) — Tracks package delivery through stages. Demonstrates **push notifications** — the BFF registers a webhook via `createTaskPushNotificationConfig`, and the agent pushes status updates ("Picked up", "In transit", "Delivered!") to the webhook as the package moves. No authentication.
-- **Assistant Agent** (port 8090) — Orchestrates weather, news, and fortune agents via Camel's `multicast` EIP with `parallelProcessing`, aggregates responses into a JSON object, and exposes the result as an A2A agent itself (JSON-RPC).
-- **Dashboard BFF** (port 3000) — A Node.js/Express server using `@a2a-js/sdk`. Calls the assistant for the sync briefing and directly handles traffic (async polling), email (SSE proxying), and package (push webhook receiver). Serves the interactive HTML dashboard.
+### Weather Agent (port 8080)
+
+Returns mock weather data and forecasts. The primary showcase for **data format modes** and **card-access Simple functions**.
+
+| Feature | Config / Usage | Description |
+|---------|---------------|-------------|
+| A2A Consumer | `from: a2a:classpath:agent-card.json` | Exposes the agent as an A2A endpoint with auto-registered HTTP routes |
+| `dataFormat=POJO` | `dataFormat: POJO` | Body is the full `Message` object (with `role`, `parts`, `metadata`) instead of extracted text |
+| `${a2a:text}` | `${a2a:text} contains 'forecast'` | Extracts the first `TextPart` from the `Message` body — works with any data format |
+| `${a2a:card.name}` | `${a2a:card.name} received: ...` | Resolves the agent name from the card at runtime for log messages |
+| OIDC authentication | `oauthProfile: weather`, `validateAuth: true` | Validates incoming tokens via Keycloak and acquires tokens for outbound calls |
+| Agent card from file | `agent-card.json` | Card with skills, OIDC security scheme, and `supportedInterfaces` |
+
+### News Agent (port 8081)
+
+Returns mock news headlines and trending topics. The primary showcase for **JSON-RPC protocol binding**.
+
+| Feature | Config / Usage | Description |
+|---------|---------------|-------------|
+| A2A Consumer | `from: a2a:classpath:agent-card.json` | Standard consumer endpoint |
+| `protocolBinding=jsonrpc` | `protocolBinding: jsonrpc` | All A2A operations go through a single `POST /` endpoint with JSON-RPC 2.0 envelopes instead of REST paths |
+| `${a2a:card.name}` | `${a2a:card.name} received: ...` | Dynamic agent name in log messages |
+| OIDC authentication | `oauthProfile: news`, `validateAuth: true` | Token validation via Keycloak |
+
+### Fortune Agent (port 8082)
+
+Returns random fortune cookie quotes from classic Unix `fortune` data. The primary showcase for **card from URI parameters** and **API key auth**.
+
+| Feature | Config / Usage | Description |
+|---------|---------------|-------------|
+| Card from parameters | `a2a:fortune-agent` + `name`, `description`, `version` params | No `agent-card.json` file — the card is built entirely from URI parameters at startup |
+| API key authentication | `apiKey: "{{fortune.api-key}}"`, `validateAuth: true` | Incoming requests must include the API key; the consumer validates it automatically |
+| `${a2a:card.name}` | `${a2a:card.name} received: ...` | Resolves `name` from the URI parameter override (`Fortune Cookie`) |
+| Bean integration | `${bean:fortuneService?method=getRandomFortune}` | Calls a Java `@BindToRegistry` bean from the YAML route |
+
+### Traffic Agent (port 8083)
+
+Returns mock commute data after a simulated delay. The primary showcase for **async task lifecycle** and **capacity limiting**.
+
+| Feature | Config / Usage | Description |
+|---------|---------------|-------------|
+| A2A Consumer | `from: a2a:classpath:agent-card.json` | Standard consumer endpoint |
+| `returnImmediately` | `returnImmediately: true` | Returns a SUBMITTED task instantly; processing continues in the background. Clients poll with `GetTask` until COMPLETED |
+| `asyncTimeout` | `asyncTimeout: 30000` | Maximum time (ms) for async task completion before timeout |
+| `maxConcurrentTasks` | `maxConcurrentTasks: 2` | Limits parallel route executions to 2 — excess requests get HTTP 429 (ServerBusyError) |
+| OIDC authentication | `oauthProfile: traffic`, `validateAuth: true` | Token validation via Keycloak |
+
+### Email Agent (port 8084)
+
+Scans inbox and provides a prioritized email digest. The primary showcase for **SSE streaming** and **`${a2a:emit()}`** in pure YAML.
+
+| Feature | Config / Usage | Description |
+|---------|---------------|-------------|
+| A2A Consumer | `from: a2a:classpath:agent-card.json` | Standard consumer endpoint |
+| `protocolBinding=jsonrpc` | `protocolBinding: jsonrpc` | JSON-RPC 2.0 wire format |
+| `httpServerComponent` | `httpServerComponent: undertow` | Uses Undertow instead of the default platform-http for SSE streaming support |
+| `${a2a:emit()}` | `${a2a:emit('Connecting to inbox...')}` | Emits progressive WORKING status events via SSE — clients see real-time progress |
+| Streaming capability | `"capabilities": {"streaming": true}` in card | Advertises SSE streaming support in the agent card |
+| No authentication | No `validateAuth` or auth params | Intentionally open for demo simplicity |
+
+### Package Agent (port 8085)
+
+Tracks package delivery through stages. The primary showcase for **push notifications** via webhooks.
+
+| Feature | Config / Usage | Description |
+|---------|---------------|-------------|
+| A2A Consumer | `from: a2a:classpath:agent-card.json` | Standard consumer endpoint |
+| `returnImmediately` | `returnImmediately: true` | Returns SUBMITTED immediately; delivery stages process in the background |
+| `asyncTimeout` | `asyncTimeout: 60000` | Longer timeout (60s) for multi-stage delivery simulation |
+| `${a2a:emit()}` | `${a2a:emit('Package picked up...')}` | Emits delivery stage updates — triggers push notification dispatch to registered webhooks |
+| Push notifications | `"capabilities": {"pushNotifications": true}` in card | Advertises push capability; clients register webhooks via `createTaskPushNotificationConfig` |
+| Pure YAML agent | No Java code | All delivery stages handled with YAML `script` + `delay` steps |
+
+### Assistant Agent (port 8090)
+
+Orchestrates weather, news, and fortune agents into a morning briefing. The primary showcase for the **A2A producer**, **parallel multicast**, and **history management**.
+
+| Feature | Config / Usage | Description |
+|---------|---------------|-------------|
+| A2A Consumer | `from: a2a:classpath:agent-card.json` | Exposes the orchestrator as an A2A agent itself |
+| A2A Producer | `to: a2a:http://localhost:8080` | Calls remote agents with automatic card discovery, protocol wrapping, and auth |
+| `protocolBinding=jsonrpc` | `protocolBinding: jsonrpc` | JSON-RPC for inbound requests |
+| `httpServerComponent` | `httpServerComponent: undertow` | Undertow as the HTTP server |
+| `historyLength` | `historyLength: 10` | Caps multi-turn conversation context to 10 messages |
+| `oauthProfile` (producer) | `oauthProfile: assistant` on `to:` URIs | Acquires OAuth tokens for outbound calls to OIDC-protected agents |
+| `apiKey` (producer) | `apiKey: ...` on fortune call | Sends API key when calling the fortune agent |
+| Parallel multicast | `multicast: parallelProcessing: true` | Calls weather, news, and fortune agents concurrently using Camel's multicast EIP |
+| Custom aggregation | `MorningBriefingAggregator.java` | Collects 3 responses and serializes them as a JSON object |
+| `${a2a:text}` (producer) | `${a2a:text}` in log steps | Extracts text from the `Task` response returned by the producer |
+| Mixed protocol calls | REST (weather), JSON-RPC (news), REST (fortune) | Producer adapts protocol per agent based on endpoint config |
+
+### Dashboard BFF (port 3000)
+
+A Node.js/Express server using `@a2a-js/sdk`. Not a Camel agent — demonstrates the **A2A JS SDK** client library.
+
+| Feature | Usage | Description |
+|---------|-------|-------------|
+| Sync briefing | `client.sendMessage()` → assistant | Calls the assistant and waits for the aggregated response |
+| Async polling | `client.sendMessage()` + `client.getTask()` → traffic | Submits with `returnImmediately`, polls until COMPLETED |
+| SSE streaming | `client.sendMessageStream()` → email | Receives progressive status events in real-time |
+| Push notifications | `client.createTaskPushNotificationConfig()` → package | Registers a webhook, receives delivery stages via POST callbacks |
+| OIDC token management | `oidc.ts` | Acquires and caches Keycloak tokens for authenticated agent calls |
 
 ## How It Works
 
 ### Consumer: Exposing an A2A agent
 
-Weather and news agents use the `camel-a2a` component as a **consumer** with a card loaded from a JSON file:
+Weather and news agents use the `camel-a2a` component as a **consumer** with a card loaded from a JSON file. The weather agent uses `dataFormat=POJO` so the body is a full `Message` object, and `${a2a:text}` to extract text content:
 
 ```yaml
 - route:
@@ -89,9 +183,10 @@ Weather and news agents use the `camel-a2a` component as a **consumer** with a c
       parameters:
         oauthProfile: weather
         validateAuth: true
+        dataFormat: POJO
       steps:
         - log:
-            message: "Weather agent received: ${body}"
+            message: "${a2a:card.name} received: ${a2a:text}"
         # ... business logic here
 ```
 
@@ -147,7 +242,7 @@ The producer automatically fetches the agent card, wraps the message in A2A prot
 
 ### Async task lifecycle
 
-The traffic agent demonstrates async processing — it returns immediately and does the work in the background:
+The traffic agent demonstrates async processing with capacity limiting — it returns immediately, does the work in the background, and limits concurrent tasks:
 
 ```yaml
 - route:
@@ -156,6 +251,7 @@ The traffic agent demonstrates async processing — it returns immediately and d
       parameters:
         returnImmediately: true
         asyncTimeout: 30000
+        maxConcurrentTasks: 2
       steps:
         - delay:
             constant: 5000
@@ -328,10 +424,14 @@ curl -s -X POST http://localhost:8082/message:send \
 4. **JSON-RPC Protocol Binding** — The news and email agents use `protocolBinding=jsonrpc`, showing protocol flexibility with a single config change
 5. **Parallel Multicast** — Camel's `multicast` EIP with `parallelProcessing` calls agents concurrently and aggregates results
 6. **Mixed Authentication** — OIDC (weather, news, traffic), API key (fortune), and none (email, package) — the producer adapts automatically based on each agent's card
-7. **Async Task Lifecycle** — The traffic agent uses `returnImmediately=true` to return a SUBMITTED task instantly; the BFF polls with `getTask` showing SUBMITTED -> WORKING -> COMPLETED transitions
-8. **SSE Streaming** — The email agent uses `${a2a:emit()}` to emit progressive status events; the BFF proxies them to the browser via `sendMessageStream`
-9. **Push Notifications** — The package agent pushes delivery updates to a webhook registered by the BFF via `createTaskPushNotificationConfig`; the dashboard shows toast notifications for each stage
-10. **A2A JS SDK** — The Dashboard BFF demonstrates the JavaScript/TypeScript A2A client library with OIDC auth, streaming, and push notification support
+7. **Data Format Modes** — The weather agent uses `dataFormat=POJO` so the body is a full `Message` object; `${a2a:text}` extracts text content for routing decisions
+8. **Capacity Limiting** — The traffic agent uses `maxConcurrentTasks=2` to limit parallel processing; excess requests get HTTP 429 (ServerBusyError)
+9. **History Length** — The assistant uses `historyLength=10` to cap how many prior messages are retained in multi-turn conversation context
+10. **Card Access via Simple** — Agents use `${a2a:card.name}` in log messages to dynamically resolve their name from the agent card at runtime
+11. **Async Task Lifecycle** — The traffic agent uses `returnImmediately=true` to return a SUBMITTED task instantly; the BFF polls with `getTask` showing SUBMITTED -> WORKING -> COMPLETED transitions
+12. **SSE Streaming** — The email agent uses `${a2a:emit()}` to emit progressive status events; the BFF proxies them to the browser via `sendMessageStream`
+13. **Push Notifications** — The package agent pushes delivery updates to a webhook registered by the BFF via `createTaskPushNotificationConfig`; the dashboard shows toast notifications for each stage
+14. **A2A JS SDK** — The Dashboard BFF demonstrates the JavaScript/TypeScript A2A client library with OIDC auth, streaming, and push notification support
 
 ## Project Structure
 
@@ -362,7 +462,6 @@ camel-a2a-morning-routine/
 │   └── routes.camel.yaml               # A2A consumer + JSON-RPC + SSE via ${a2a:emit()}
 ├── package-agent/
 │   ├── agent-card.json                  # Agent card, no security, push capable
-│   ├── PackageDeliverySimulator.java    # Processor emitting delivery stages via A2AProgress
 │   ├── application.properties           # Port 8085, no OAuth
 │   └── routes.camel.yaml               # A2A consumer + async + push via ${a2a:emit()}
 ├── assistant/

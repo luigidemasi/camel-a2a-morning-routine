@@ -1,5 +1,6 @@
 # Traffic Agent - calculates commute route via A2A protocol
 # Uses returnImmediately=true for async task lifecycle demo
+# maxConcurrentTasks limits parallel route executions (excess requests get HTTP 429)
 
 - route:
     id: traffic-agent
@@ -10,6 +11,7 @@
         validateAuth: true
         returnImmediately: true
         asyncTimeout: 30000
+        maxConcurrentTasks: 2
       steps:
         - log:
             message: "Traffic agent computing route..."
