@@ -20,9 +20,18 @@
   ],
   "securitySchemes": {
     "oidc": {
-      "type": "openIdConnect",
-      "openIdConnectUrl": "http://localhost:8180/realms/a2a-morning-routine/.well-known/openid-configuration"
+      "openIdConnectSecurityScheme": {
+        "openIdConnectUrl": "http://localhost:8180/realms/a2a-morning-routine/.well-known/openid-configuration"
+      }
     }
   },
-  "security": [{"oidc": []}]
+  "securityRequirements": [
+    {
+      "schemes": {
+        "oidc": {
+          "list": []
+        }
+      }
+    }
+  ]
 }

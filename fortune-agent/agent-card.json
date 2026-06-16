@@ -1,0 +1,32 @@
+{
+  "name": "fortune-agent",
+  "description": "Random wisdom and humor from classic Unix fortune",
+  "url": "http://localhost:8082",
+  "supportedInterfaces": [{"url": "http://localhost:8082", "protocolBinding": "HTTP+JSON", "protocolVersion": "1.0"}],
+  "version": "1.0.0",
+  "skills": [
+    {
+      "id": "fortune-cookie",
+      "name": "Fortune Cookie",
+      "description": "Returns a random fortune cookie quote",
+      "tags": ["fortune", "quote", "wisdom", "humor"]
+    }
+  ],
+  "securitySchemes": {
+    "apikey": {
+      "apiKeySecurityScheme": {
+        "location": "header",
+        "name": "X-API-Key"
+      }
+    }
+  },
+  "securityRequirements": [
+    {
+      "schemes": {
+        "apikey": {
+          "list": []
+        }
+      }
+    }
+  ]
+}

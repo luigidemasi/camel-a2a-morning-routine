@@ -10,6 +10,7 @@
         protocolBinding: jsonrpc
         httpServerComponent: undertow
         historyLength: 10
+        validateAuth: false
       steps:
         - log:
             message: "Morning briefing requested"

@@ -12,6 +12,7 @@
       parameters:
         protocolBinding: jsonrpc
         httpServerComponent: undertow
+        validateAuth: false
       steps:
         - script:
             simple: "${a2a:emit('📧 Connecting to inbox...')}"

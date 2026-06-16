@@ -6,8 +6,10 @@
     from:
       uri: a2a:classpath:agent-card.json
       parameters:
+        validateAuth: false
         returnImmediately: true
         asyncTimeout: 60000
+        allowLocalWebhookUrls: true
       steps:
         - delay:
              simple: ${random(1500, 4500)}
