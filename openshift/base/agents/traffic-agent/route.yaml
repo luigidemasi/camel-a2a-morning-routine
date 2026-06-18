@@ -1,0 +1,16 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: traffic-agent
+  labels:
+    app: a2a-morning-routine
+    component: traffic-agent
+spec:
+  to:
+    kind: Service
+    name: traffic-agent
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

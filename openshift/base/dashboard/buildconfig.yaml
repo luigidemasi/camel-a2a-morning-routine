@@ -1,0 +1,23 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: dashboard
+  labels:
+    app: a2a-morning-routine
+    component: dashboard
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/YOUR_USERNAME/camel-a2a-morning-routine.git
+      ref: main
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: dockerfiles/dashboard.Dockerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: dashboard:latest
+  triggers:
+    - type: ConfigChange

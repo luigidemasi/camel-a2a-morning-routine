@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traffic-agent
+  labels:
+    app: a2a-morning-routine
+    component: traffic-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traffic-agent
+  template:
+    metadata:
+      labels:
+        app: traffic-agent
+        app.kubernetes.io/part-of: a2a-morning-routine
+    spec:
+      initContainers:
+        - name: wait-for-keycloak
+          image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+          command: ['sh', '-c']
+          args:
+            - |
+              until curl -f http://keycloak:8080/health/ready; do
+                echo "Waiting for Keycloak..."
+                sleep 5
+              done
+              echo "Keycloak is ready!"
+      containers:
+        - name: traffic-agent
+          image: image-registry.openshift-image-registry.svc:5000/a2a-morning-routine/traffic-agent:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /app/application.properties
+              subPath: application.properties
+          livenessProbe:
+            httpGet:
+              path: /.well-known/agent-card.json
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /.well-known/agent-card.json
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+      volumes:
+        - name: config
+          configMap:
+            name: traffic-agent-config

@@ -66,6 +66,11 @@ cd package-agent
 $CAMEL * --background $A2A_DEP --logging-level=info
 cd ..
 
+echo -e "☕ Starting Breakfast Failure Agent on port ${CYAN}8086${RESET}..."
+cd breakfast-agent
+$CAMEL * --background $A2A_DEP --logging-level=info
+cd ..
+
 # Wait for consumer agents to be ready before starting the assistant,
 # because the a2a producer fetches agent cards at startup
 echo -e "   ${DIM}Waiting for agents to be ready...${RESET}"
@@ -105,6 +110,7 @@ echo -e "   🥠 Fortune     ${CYAN}http://localhost:8082/.well-known/agent-card
 echo -e "   🚗 Traffic     ${CYAN}http://localhost:8083/.well-known/agent-card.json${RESET}  ${DIM}(OIDC, returnImmediately)${RESET}"
 echo -e "   📧 Email       ${CYAN}http://localhost:8084/.well-known/agent-card.json${RESET}  ${DIM}(SSE streaming)${RESET}"
 echo -e "   📦 Package     ${CYAN}http://localhost:8085/.well-known/agent-card.json${RESET}  ${DIM}(push notifications)${RESET}"
+echo -e "   ☕ Breakfast   ${CYAN}http://localhost:8086/.well-known/agent-card.json${RESET}  ${DIM}(a2aSubTask emitOnError)${RESET}"
 echo -e "   🤖 Assistant   ${CYAN}http://localhost:8090/.well-known/agent-card.json${RESET}  ${DIM}(A2A orchestrator)${RESET}"
 echo ""
 echo -e "${BOLD}☕ Morning Briefing${RESET}"

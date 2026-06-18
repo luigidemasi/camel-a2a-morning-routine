@@ -1,0 +1,10 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: breakfast-agent
+  labels:
+    app: a2a-morning-routine
+    component: breakfast-agent
+spec:
+  lookupPolicy:
+    local: true

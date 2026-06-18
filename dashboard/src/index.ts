@@ -6,6 +6,7 @@ import briefingRouter from './routes/briefing.js';
 import emailRouter from './routes/email.js';
 import trafficRouter from './routes/traffic.js';
 import packageRouter from './routes/package.js';
+import breakfastRouter from './routes/breakfast.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -18,6 +19,7 @@ app.use(briefingRouter);
 app.use(emailRouter);
 app.use(trafficRouter);
 app.use(packageRouter);
+app.use(breakfastRouter);
 
 app.get('/', (_req, res) => {
   res.sendFile(join(__dirname, '..', 'public', 'dashboard.html'));

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: package-agent-config
+  labels:
+    app: a2a-morning-routine
+    component: package-agent
+data:
+  application.properties: |
+    camel.server.port=8080
+    camel.server.enabled=true

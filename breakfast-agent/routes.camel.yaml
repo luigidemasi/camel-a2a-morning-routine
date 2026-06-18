@@ -1,0 +1,36 @@
+# camel-jbang: dependency=mvn:org.apache.camel:camel-a2a:4.21.0-SNAPSHOT
+# camel-jbang: dependency=camel:undertow
+#
+# Breakfast Failure Agent - intentionally fails inside a2aSubTask
+# Demonstrates emitOnError with ${exception.message} while the original exception propagates
+
+- route:
+    id: breakfast-agent
+    from:
+      uri: a2a:classpath:agent-card.json
+      parameters:
+        protocolBinding: jsonrpc
+        httpServerComponent: undertow
+        validateAuth: false
+      steps:
+        - a2aSubTask:
+            emitBefore: "🥣 Gathering breakfast ingredients..."
+            emitAfter: "🥣 Ingredients ready"
+            emitOnError: "🥣 Ingredient check failed: ${exception.message}"
+            steps:
+              - delay:
+                  simple: ${random(1000, 2500)}
+              - log:
+                  message: "Breakfast ingredients are ready"
+        - a2aSubTask:
+            emitBefore: "☕ Brewing coffee..."
+            emitAfter: "☕ Coffee ready"
+            emitOnError: "🔥 Coffee subtask failed: ${exception.message}"
+            steps:
+              - delay:
+                  simple: ${random(1000, 2500)}
+              - throwException:
+                  exceptionType: java.lang.IllegalStateException
+                  message: "Coffee grinder jammed"
+        - setBody:
+            constant: "Breakfast is ready"

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: email-agent
+  labels:
+    app: a2a-morning-routine
+    component: email-agent
+spec:
+  type: ClusterIP
+  selector:
+    app: email-agent
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

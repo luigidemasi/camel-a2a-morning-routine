@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: news-agent-config
+  labels:
+    app: a2a-morning-routine
+    component: news-agent
+data:
+  application.properties: |
+    camel.server.port=8080
+    camel.server.enabled=true
+
+    # Keycloak OIDC (OpenShift internal DNS)
+    keycloak.oidc.url=http://keycloak:8080/realms/a2a-morning-routine/.well-known/openid-configuration
+    camel.oauth.news.client-id=news-agent
+    camel.oauth.news.client-secret=news-agent-secret
+    camel.oauth.news.token-endpoint=http://keycloak:8080/realms/a2a-morning-routine/protocol/openid-connect/token
+    camel.oauth.news.base-uri=http://keycloak:8080/realms/a2a-morning-routine
+    camel.oauth.news.expected-audience=account
+    camel.oauth.news.allow-insecure-http=false

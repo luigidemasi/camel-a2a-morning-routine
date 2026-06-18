@@ -3,6 +3,7 @@ export const AGENTS = {
   traffic: 'http://localhost:8083',
   email: 'http://localhost:8084',
   package: 'http://localhost:8085',
+  breakfast: 'http://localhost:8086',
 } as const;
 
 export const KEYCLOAK = {

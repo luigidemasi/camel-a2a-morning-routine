@@ -1,0 +1,18 @@
+{
+  "name": "breakfast-agent",
+  "description": "Demonstrates a2aSubTask error progress when breakfast preparation fails",
+  "url": "http://localhost:8086",
+  "supportedInterfaces": [{"url": "http://localhost:8086", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
+  "version": "1.0.0",
+  "capabilities": {
+    "streaming": true
+  },
+  "skills": [
+    {
+      "id": "breakfast-check",
+      "name": "Breakfast Check",
+      "description": "Runs a staged breakfast routine and intentionally fails during coffee preparation",
+      "tags": ["breakfast", "failure", "subtask", "progress"]
+    }
+  ]
+}

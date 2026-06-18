@@ -1,5 +1,5 @@
 # Package Tracker Agent - tracks delivery via A2A protocol
-# Uses returnImmediately + push notifications for real-time updates
+# Uses returnImmediately + a2aSubTask progress for push notifications
 
 - route:
     id: package-agent
@@ -11,27 +11,40 @@
         asyncTimeout: 60000
         allowLocalWebhookUrls: true
       steps:
-        - delay:
-             simple: ${random(1500, 4500)}
-        - script:
-            simple: "${a2a:emit('📦 Package picked up from warehouse')}"
-        - delay:
-             simple: ${random(1500, 4500)}
-        - script:
-            simple: "${a2a:emit('🚚 In transit — en route to distribution center')}"
-        - delay:
-             simple: ${random(1500, 4500)}
-        - script:
-            simple: "${a2a:emit('🏪 At local distribution center')}"
-        - delay:
-            simple: ${random(1500, 4500)}
-        - script:
-            simple: "${a2a:emit('🛵 Out for delivery')}"
-        - delay:
-            simple: "${random(1500, 4500)}"
-        - script:
-            simple: "${a2a:emit('✅ Delivered! Left at front door')}"
-        - delay:
-            simple: "${random(1500, 4500)}"
+        - a2aSubTask:
+            emitBefore: "📦 Checking package manifest..."
+            emitAfter: "📦 Package picked up from warehouse"
+            emitOnError: "📦 Package pickup failed: ${exception.message}"
+            steps:
+              - delay:
+                  simple: ${random(1500, 4500)}
+        - a2aSubTask:
+            emitBefore: "🚚 Loading package for transport..."
+            emitAfter: "🚚 In transit — en route to distribution center"
+            emitOnError: "🚚 Transit handoff failed: ${exception.message}"
+            steps:
+              - delay:
+                  simple: ${random(1500, 4500)}
+        - a2aSubTask:
+            emitBefore: "🏪 Scanning at distribution center..."
+            emitAfter: "🏪 At local distribution center"
+            emitOnError: "🏪 Distribution scan failed: ${exception.message}"
+            steps:
+              - delay:
+                  simple: ${random(1500, 4500)}
+        - a2aSubTask:
+            emitBefore: "🛵 Assigning final courier..."
+            emitAfter: "🛵 Out for delivery"
+            emitOnError: "🛵 Courier assignment failed: ${exception.message}"
+            steps:
+              - delay:
+                  simple: ${random(1500, 4500)}
+        - a2aSubTask:
+            emitBefore: "✅ Confirming delivery..."
+            emitAfter: "✅ Delivered! Left at front door"
+            emitOnError: "✅ Delivery confirmation failed: ${exception.message}"
+            steps:
+              - delay:
+                  simple: "${random(1500, 4500)}"
         - setBody:
             constant: "📦 Package delivered successfully! Left at front door."

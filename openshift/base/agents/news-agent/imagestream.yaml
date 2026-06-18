@@ -1,0 +1,10 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: news-agent
+  labels:
+    app: a2a-morning-routine
+    component: news-agent
+spec:
+  lookupPolicy:
+    local: true

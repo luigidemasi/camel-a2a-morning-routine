@@ -87,6 +87,7 @@
     .icon-traffic { background: linear-gradient(135deg, #d4fc79, #96e6a1); }
     .icon-email { background: linear-gradient(135deg, #e0c3fc, #8ec5fc); }
     .icon-package { background: linear-gradient(135deg, #ffeaa7, #fdcb6e); }
+    .icon-breakfast { background: linear-gradient(135deg, #ffc3a0, #ffafbd); }
 
     .card-badges {
       display: flex;
@@ -383,6 +384,25 @@
       </div>
     </div>
 
+    <div id="briefing-breakfast" class="card hidden">
+      <div class="card-header">
+        <div class="card-icon icon-breakfast">&#9749;</div>
+        <div>
+          <div class="card-title">Breakfast Failure</div>
+          <div class="card-subtitle" id="breakfast-subtitle">Testing onError progress</div>
+        </div>
+      </div>
+      <div class="card-badges">
+        <span class="card-label label-auth">No Auth</span>
+        <span class="card-label label-protocol">JSON-RPC</span>
+        <span class="card-label label-feature">a2aSubTask</span>
+        <span class="card-label label-pattern">emitOnError</span>
+      </div>
+      <div class="card-body">
+        <div class="card-content" id="breakfast-content"></div>
+      </div>
+    </div>
+
     <div id="error" class="error hidden">
       <p id="error-message"></p>
       <button onclick="loadBriefing()">Try again</button>
@@ -429,6 +449,7 @@
       document.getElementById('briefing-traffic').classList.add('hidden');
       document.getElementById('briefing-email').classList.add('hidden');
       document.getElementById('briefing-package').classList.add('hidden');
+      document.getElementById('briefing-breakfast').classList.add('hidden');
       document.getElementById('error').classList.add('hidden');
 
       fetch('/api/morning-briefing')
@@ -447,6 +468,7 @@
           loadTraffic();
           loadEmail();
           loadPackage();
+          loadBreakfastFailure();
         })
         .catch(function(err) {
           document.getElementById('error-message').textContent =
@@ -648,6 +670,65 @@
             pollPackage(taskId, lastStage, attempt + 1);
           });
       }, 1500);
+    }
+
+    function loadBreakfastFailure() {
+      var content = document.getElementById('breakfast-content');
+      content.textContent = '';
+      document.getElementById('breakfast-subtitle').textContent = 'Starting failure demo';
+      document.getElementById('briefing-breakfast').classList.remove('hidden');
+
+      var source = new EventSource('/api/breakfast-stream');
+
+      source.onmessage = function(e) {
+        try {
+          var event = JSON.parse(e.data);
+          if (event.statusUpdate) {
+            var status = event.statusUpdate.status;
+            if (status && status.message) {
+              var parts = status.message.parts;
+              if (parts && parts.length > 0 && parts[0].text) {
+                var text = parts[0].text;
+                if (content.textContent.length > 0) content.textContent += '\n';
+                content.textContent += text;
+                document.getElementById('breakfast-subtitle').textContent = text;
+              }
+            }
+          } else if (event.message) {
+            var msg = event.message;
+            if (msg.parts && msg.parts.length > 0 && msg.parts[0].text) {
+              if (content.textContent.length > 0) content.textContent += '\n';
+              content.textContent += msg.parts[0].text;
+            }
+          }
+        } catch (err) {
+          console.error('Breakfast SSE parse error:', err);
+        }
+      };
+
+      source.addEventListener('error', function(e) {
+        source.close();
+        var errorText = 'A2A stream failed after emitOnError';
+        if (e.data) {
+          try {
+            var event = JSON.parse(e.data);
+            if (event.error) errorText = event.error;
+          } catch (err) {
+            errorText = e.data;
+          }
+        }
+        if (content.textContent.length > 0) content.textContent += '\n';
+        content.textContent += 'Expected failure: ' + errorText;
+        document.getElementById('breakfast-subtitle').textContent = 'Failed as expected';
+      });
+
+      source.addEventListener('done', function() {
+        source.close();
+        if (!content.textContent) {
+          content.textContent = 'No failure event received';
+          document.getElementById('breakfast-subtitle').textContent = 'No event';
+        }
+      });
     }
 
     loadBriefing();

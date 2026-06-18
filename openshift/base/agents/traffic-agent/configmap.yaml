@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: traffic-agent-config
+  labels:
+    app: a2a-morning-routine
+    component: traffic-agent
+data:
+  application.properties: |
+    camel.server.port=8080
+    camel.server.enabled=true
+
+    # Keycloak OIDC (OpenShift internal DNS)
+    keycloak.oidc.url=http://keycloak:8080/realms/a2a-morning-routine/.well-known/openid-configuration
+    camel.oauth.traffic.client-id=traffic-agent
+    camel.oauth.traffic.client-secret=traffic-agent-secret
+    camel.oauth.traffic.token-endpoint=http://keycloak:8080/realms/a2a-morning-routine/protocol/openid-connect/token
+    camel.oauth.traffic.base-uri=http://keycloak:8080/realms/a2a-morning-routine
+    camel.oauth.traffic.expected-audience=account
+    camel.oauth.traffic.allow-insecure-http=false

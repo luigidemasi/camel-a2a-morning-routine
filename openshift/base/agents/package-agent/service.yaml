@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: package-agent
+  labels:
+    app: a2a-morning-routine
+    component: package-agent
+spec:
+  type: ClusterIP
+  selector:
+    app: package-agent
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

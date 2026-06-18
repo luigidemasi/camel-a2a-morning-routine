@@ -10,17 +10,18 @@ A comprehensive demo showcasing the [A2A protocol](https://a2a-protocol.org) wit
 | News | 8081 | JSON-RPC protocol binding | OIDC | JSON-RPC |
 | Fortune | 8082 | Card from URI parameters (no JSON file) | API Key | REST |
 | Traffic | 8083 | Async task lifecycle + `maxConcurrentTasks` capacity limiting | OIDC | REST |
-| Email | 8084 | SSE streaming via `${a2a:emit()}` | None | JSON-RPC |
-| Package | 8085 | Push notifications via webhooks | None | REST |
+| Email | 8084 | SSE streaming via `a2aSubTask` scoped progress | None | JSON-RPC |
+| Package | 8085 | Push notifications via `a2aSubTask` scoped progress | None | REST |
+| Breakfast | 8086 | `a2aSubTask emitOnError` failure progress | None | JSON-RPC |
 | Assistant | 8090 | Parallel multicast orchestration + `historyLength` | OIDC (outbound) | JSON-RPC |
-| Dashboard BFF | 3000 | A2A JS SDK client — async polling, SSE streaming, push webhooks | OIDC | — |
+| Dashboard BFF | 3000 | A2A JS SDK client — async polling, SSE/error streaming, push webhooks | OIDC | — |
 
 ## Architecture
 
 The demo uses two orchestration tiers:
 
 1. **Camel Assistant** (port 8090) — multicasts to weather, news, and fortune agents in parallel using `camel-a2a` as a producer, aggregating responses into a single JSON briefing.
-2. **Dashboard BFF** (port 3000) — a Node.js/Express server using the `@a2a-js/sdk` to call the assistant for the sync briefing and to directly interact with traffic (async polling), email (SSE streaming), and package (push notifications) agents.
+2. **Dashboard BFF** (port 3000) — a Node.js/Express server using the `@a2a-js/sdk` to call the assistant for the sync briefing and to directly interact with traffic (async polling), email (SSE streaming), package (push notifications), and breakfast (failure streaming) agents.
 
 ```mermaid
 graph TB
@@ -38,8 +39,9 @@ graph TB
 
     subgraph jssdk ["A2A JS SDK (async / streaming / push)"]
         Traffic["Traffic<br/>port 8083<br/><b>OIDC · Async returnImmediately</b>"]
-        Email["Email<br/>port 8084<br/><b>No Auth · SSE Streaming</b>"]
-        Package["Package<br/>port 8085<br/><b>No Auth · Push Notifications</b>"]
+        Email["Email<br/>port 8084<br/><b>No Auth · SSE + a2aSubTask</b>"]
+        Package["Package<br/>port 8085<br/><b>No Auth · Push + a2aSubTask</b>"]
+        Breakfast["Breakfast<br/>port 8086<br/><b>No Auth · emitOnError</b>"]
     end
 
     BFF -- "A2A JSON-RPC" --> Assistant
@@ -50,6 +52,7 @@ graph TB
     BFF -- "sendMessage + getTask" --> Traffic
     BFF -- "sendMessageStream (SSE)" --> Email
     BFF -- "sendMessage + createTaskPushNotificationConfig" --> Package
+    BFF -- "sendMessageStream failure" --> Breakfast
     Package -- "POST /webhook/package" --> BFF
 
     style Browser fill:#f5f5f0,stroke:#333
@@ -61,6 +64,7 @@ graph TB
     style Traffic fill:#d4fc79,stroke:#96e6a1
     style Email fill:#e0c3fc,stroke:#8ec5fc
     style Package fill:#ffeaa7,stroke:#fdcb6e
+    style Breakfast fill:#ffc3a0,stroke:#ff8a80
     style camel fill:#f5f5f0,stroke:#ccc,stroke-dasharray: 5 5
     style jssdk fill:#f5f5f0,stroke:#ccc,stroke-dasharray: 5 5
 ```
@@ -116,29 +120,42 @@ Returns mock commute data after a simulated delay. The primary showcase for **as
 
 ### Email Agent (port 8084)
 
-Scans inbox and provides a prioritized email digest. The primary showcase for **SSE streaming** and **`${a2a:emit()}`** in pure YAML.
+Scans inbox and provides a prioritized email digest. The primary showcase for **SSE streaming** and scoped progress events with **`a2aSubTask`** in pure YAML.
 
 | Feature | Config / Usage | Description |
 |---------|---------------|-------------|
 | A2A Consumer | `from: a2a:classpath:agent-card.json` | Standard consumer endpoint |
 | `protocolBinding=jsonrpc` | `protocolBinding: jsonrpc` | JSON-RPC 2.0 wire format |
 | `httpServerComponent` | `httpServerComponent: undertow` | Uses Undertow instead of the default platform-http for SSE streaming support |
-| `${a2a:emit()}` | `${a2a:emit('Connecting to inbox...')}` | Emits progressive WORKING status events via SSE — clients see real-time progress |
+| `a2aSubTask` | `emitBefore`, `emitAfter`, `emitOnError` | Emits progressive WORKING status events around nested route steps — clients see real-time progress |
 | Streaming capability | `"capabilities": {"streaming": true}` in card | Advertises SSE streaming support in the agent card |
 | No authentication | No `validateAuth` or auth params | Intentionally open for demo simplicity |
 
 ### Package Agent (port 8085)
 
-Tracks package delivery through stages. The primary showcase for **push notifications** via webhooks.
+Tracks package delivery through stages. The primary showcase for **push notifications** via webhooks and scoped delivery progress with **`a2aSubTask`**.
 
 | Feature | Config / Usage | Description |
 |---------|---------------|-------------|
 | A2A Consumer | `from: a2a:classpath:agent-card.json` | Standard consumer endpoint |
 | `returnImmediately` | `returnImmediately: true` | Returns SUBMITTED immediately; delivery stages process in the background |
 | `asyncTimeout` | `asyncTimeout: 60000` | Longer timeout (60s) for multi-stage delivery simulation |
-| `${a2a:emit()}` | `${a2a:emit('Package picked up...')}` | Emits delivery stage updates — triggers push notification dispatch to registered webhooks |
+| `a2aSubTask` | `emitBefore`, `emitAfter`, `emitOnError` | Emits delivery stage updates around nested route steps — triggers push notification dispatch to registered webhooks |
 | Push notifications | `"capabilities": {"pushNotifications": true}` in card | Advertises push capability; clients register webhooks via `createTaskPushNotificationConfig` |
-| Pure YAML agent | No Java code | All delivery stages handled with YAML `script` + `delay` steps |
+| Pure YAML agent | No Java code | All delivery stages handled with YAML `a2aSubTask` + `delay` steps |
+
+### Breakfast Agent (port 8086)
+
+Intentionally fails while preparing breakfast. The primary showcase for **`emitOnError`** and exception propagation from an `a2aSubTask`.
+
+| Feature | Config / Usage | Description |
+|---------|---------------|-------------|
+| A2A Consumer | `from: a2a:classpath:agent-card.json` | Standard consumer endpoint |
+| `protocolBinding=jsonrpc` | `protocolBinding: jsonrpc` | JSON-RPC 2.0 wire format |
+| `httpServerComponent` | `httpServerComponent: undertow` | Uses Undertow for streaming support |
+| `a2aSubTask emitOnError` | `emitOnError: "Coffee subtask failed: ${exception.message}"` | Emits a progress event when a nested step fails |
+| Original exception propagation | `throwException: java.lang.IllegalStateException` | The error event is emitted, then the original route exception still fails the task |
+| Streaming capability | `"capabilities": {"streaming": true}` in card | Lets the dashboard receive the error progress event before the stream failure |
 
 ### Assistant Agent (port 8090)
 
@@ -168,6 +185,7 @@ A Node.js/Express server using `@a2a-js/sdk`. Not a Camel agent — demonstrates
 | Async polling | `client.sendMessage()` + `client.getTask()` → traffic | Submits with `returnImmediately`, polls until COMPLETED |
 | SSE streaming | `client.sendMessageStream()` → email | Receives progressive status events in real-time |
 | Push notifications | `client.createTaskPushNotificationConfig()` → package | Registers a webhook, receives delivery stages via POST callbacks |
+| Error streaming | `client.sendMessageStream()` → breakfast | Shows the `emitOnError` progress event, then displays the propagated task failure |
 | OIDC token management | `oidc.ts` | Acquires and caches Keycloak tokens for authenticated agent calls |
 
 ## How It Works
@@ -274,15 +292,16 @@ const task = await client.getTask({ id: taskId });
 
 ### SSE streaming
 
-The email agent emits progressive status events using `${a2a:emit()}` in pure YAML:
+The email agent emits progressive status events with `a2aSubTask` in pure YAML:
 
 ```yaml
-- script:
-    simple: "${a2a:emit('Connecting to inbox...')}"
-- delay:
-    simple: ${random(1500, 4500)}
-- script:
-    simple: "${a2a:emit('Found 12 unread messages...')}"
+- a2aSubTask:
+    emitBefore: "Connecting to inbox..."
+    emitAfter: "Found 12 unread messages..."
+    emitOnError: "Inbox scan failed: ${exception.message}"
+    steps:
+      - delay:
+          simple: ${random(1500, 4500)}
 ```
 
 The Dashboard BFF receives events via the A2A JS SDK's `sendMessageStream`:
@@ -295,7 +314,7 @@ for await (const event of client.sendMessageStream({ message })) {
 
 ### Push notifications
 
-The package agent uses `returnImmediately=true` and emits delivery stages via `${a2a:emit()}`, triggering push notification dispatch to registered webhooks:
+The package agent uses `returnImmediately=true` and emits delivery stages with `a2aSubTask`, triggering push notification dispatch to registered webhooks:
 
 ```yaml
 - route:
@@ -305,12 +324,13 @@ The package agent uses `returnImmediately=true` and emits delivery stages via `$
         returnImmediately: true
         asyncTimeout: 60000
       steps:
-        - script:
-            simple: "${a2a:emit('Package picked up from warehouse')}"
-        - delay:
-            simple: ${random(1500, 4500)}
-        - script:
-            simple: "${a2a:emit('In transit...')}"
+        - a2aSubTask:
+            emitBefore: "Checking package manifest..."
+            emitAfter: "Package picked up from warehouse"
+            emitOnError: "Package pickup failed: ${exception.message}"
+            steps:
+              - delay:
+                  simple: ${random(1500, 4500)}
         # ... more stages
 ```
 
@@ -330,12 +350,31 @@ app.post('/webhook/package', (req, res) => {
 });
 ```
 
+### Scoped error progress
+
+The breakfast agent throws inside the second `a2aSubTask`. Camel emits the `emitOnError` progress message first, with `${exception.message}` resolved from the thrown exception, and then propagates the original exception so the A2A task fails.
+
+```yaml
+- a2aSubTask:
+    emitBefore: "Brewing coffee..."
+    emitAfter: "Coffee ready"
+    emitOnError: "Coffee subtask failed: ${exception.message}"
+    steps:
+      - delay:
+          simple: ${random(1000, 2500)}
+      - throwException:
+          exceptionType: java.lang.IllegalStateException
+          message: "Coffee grinder jammed"
+```
+
+The dashboard displays this in the **Breakfast Failure** card. The `emitOnError` message is shown as a normal progress line, then the BFF forwards the stream error and the card subtitle changes to `Failed as expected`.
+
 ## Prerequisites
 
 - [Camel JBang](https://camel.apache.org/manual/camel-jbang.html) installed (`jbang app install camel@apache/camel`)
 - [Node.js](https://nodejs.org/) 18+ (for the Dashboard BFF)
 - [Podman](https://podman.io/) and `podman-compose` (for Keycloak)
-- Apache Camel 4.21.0+ (requires `camel-a2a` and `camel-oauth` components)
+- Apache Camel 4.21.0+ with CAMEL-23776 `a2aSubTask` support (requires `camel-a2a` and `camel-oauth` components)
 - No LLM or database needed
 
 ## Quick Start
@@ -354,6 +393,63 @@ curl -s http://localhost:3000/api/morning-briefing | jq
 ./stop.sh
 ```
 
+## Deploy to OpenShift
+
+Deploy this demo to Red Hat Developer Sandbox (OpenShift) with automatic CI/CD.
+
+### Prerequisites
+
+- [Red Hat Developer Sandbox account](https://developers.redhat.com/developer-sandbox) (free)
+- GitHub repository fork
+- `oc` CLI installed (for manual deployment)
+
+### Automated Deployment (GitHub Actions)
+
+1. **Fork this repository**
+
+2. **Get OpenShift credentials:**
+   - Login to [Developer Sandbox](https://developers.redhat.com/developer-sandbox)
+   - Click "Copy login command"
+   - Extract token: `oc login --token=sha256~YOUR_TOKEN --server=https://api.sandbox...`
+
+3. **Add GitHub secrets:**
+   - Go to Settings → Secrets and variables → Actions
+   - Add `OPENSHIFT_SERVER`: `https://api.sandbox-m2.ll9k.p1.openshiftapps.com:6443`
+   - Add `OPENSHIFT_TOKEN`: `sha256~YOUR_TOKEN`
+
+4. **Push to main branch** - GitHub Actions automatically deploys (15-20 minutes)
+
+5. **Access your application:**
+   ```bash
+   # View public URLs
+   oc get routes
+   ```
+   Visit the dashboard URL to see your morning briefing!
+
+### Manual Deployment
+
+```bash
+# Login to OpenShift
+oc login --token=<your-token> --server=<your-server>
+
+# Deploy using helper script
+./scripts/deploy-openshift.sh
+
+# View public URLs
+oc get routes
+```
+
+### OpenShift Architecture
+
+- **Keycloak**: Authentication server (StatefulSet)
+- **8 Camel Agents**: Weather, News, Fortune, Traffic, Email, Package, Breakfast, Assistant
+- **Dashboard**: Node.js BFF serving interactive UI
+- **Routes**: Public HTTPS URLs for all services (automatic TLS)
+
+**Resource usage:** ~1.9GB RAM, ~1.7 CPU (fits Developer Sandbox free tier)
+
+See [openshift/README.md](openshift/README.md) for detailed deployment guide and troubleshooting.
+
 ## Explore Agent Cards
 
 Each agent exposes its capabilities via the A2A agent card endpoint:
@@ -367,6 +463,9 @@ curl -s http://localhost:8081/.well-known/agent-card.json | jq
 
 # Fortune agent card (built from URI params — no JSON file!)
 curl -s http://localhost:8082/.well-known/agent-card.json | jq
+
+# Breakfast failure agent card (streaming + emitOnError)
+curl -s http://localhost:8086/.well-known/agent-card.json | jq
 ```
 
 ## Direct A2A Calls
@@ -421,17 +520,18 @@ curl -s -X POST http://localhost:8082/message:send \
 1. **A2A Consumer Endpoint** — Agents declare capabilities in `agent-card.json` and expose them via `from("a2a:classpath:agent-card.json")`
 2. **A2A Producer Endpoint** — The assistant calls agents via `to("a2a:http://host:port")` with automatic card discovery and protocol wrapping
 3. **Card from Parameters** — The fortune agent builds its agent card entirely from URI params — no JSON file needed
-4. **JSON-RPC Protocol Binding** — The news and email agents use `protocolBinding=jsonrpc`, showing protocol flexibility with a single config change
+4. **JSON-RPC Protocol Binding** — The news, email, and breakfast agents use `protocolBinding=jsonrpc`, showing protocol flexibility with a single config change
 5. **Parallel Multicast** — Camel's `multicast` EIP with `parallelProcessing` calls agents concurrently and aggregates results
-6. **Mixed Authentication** — OIDC (weather, news, traffic), API key (fortune), and none (email, package) — the producer adapts automatically based on each agent's card
+6. **Mixed Authentication** — OIDC (weather, news, traffic), API key (fortune), and none (email, package, breakfast) — the producer adapts automatically based on each agent's card
 7. **Data Format Modes** — The weather agent uses `dataFormat=POJO` so the body is a full `Message` object; `${a2a:text}` extracts text content for routing decisions
 8. **Capacity Limiting** — The traffic agent uses `maxConcurrentTasks=2` to limit parallel processing; excess requests get HTTP 429 (ServerBusyError)
 9. **History Length** — The assistant uses `historyLength=10` to cap how many prior messages are retained in multi-turn conversation context
 10. **Card Access via Simple** — Agents use `${a2a:card.name}` in log messages to dynamically resolve their name from the agent card at runtime
 11. **Async Task Lifecycle** — The traffic agent uses `returnImmediately=true` to return a SUBMITTED task instantly; the BFF polls with `getTask` showing SUBMITTED -> WORKING -> COMPLETED transitions
-12. **SSE Streaming** — The email agent uses `${a2a:emit()}` to emit progressive status events; the BFF proxies them to the browser via `sendMessageStream`
-13. **Push Notifications** — The package agent pushes delivery updates to a webhook registered by the BFF via `createTaskPushNotificationConfig`; the dashboard shows toast notifications for each stage
-14. **A2A JS SDK** — The Dashboard BFF demonstrates the JavaScript/TypeScript A2A client library with OIDC auth, streaming, and push notification support
+12. **SSE Streaming** — The email agent uses `a2aSubTask` to emit progressive status events; the BFF proxies them to the browser via `sendMessageStream`
+13. **Push Notifications** — The package agent uses `a2aSubTask` progress events and pushes delivery updates to a webhook registered by the BFF via `createTaskPushNotificationConfig`; the dashboard shows toast notifications for each stage
+14. **Scoped Error Progress** — The breakfast agent uses `emitOnError` with `${exception.message}` to show a failure progress event before the original exception propagates
+15. **A2A JS SDK** — The Dashboard BFF demonstrates the JavaScript/TypeScript A2A client library with OIDC auth, streaming, error streaming, and push notification support
 
 ## Project Structure
 
@@ -459,11 +559,15 @@ camel-a2a-morning-routine/
 ├── email-agent/
 │   ├── agent-card.json                  # Agent card, no security, streaming capable
 │   ├── application.properties           # Port 8084, no OAuth
-│   └── routes.camel.yaml               # A2A consumer + JSON-RPC + SSE via ${a2a:emit()}
+│   └── routes.camel.yaml               # A2A consumer + JSON-RPC + SSE via a2aSubTask
 ├── package-agent/
 │   ├── agent-card.json                  # Agent card, no security, push capable
 │   ├── application.properties           # Port 8085, no OAuth
-│   └── routes.camel.yaml               # A2A consumer + async + push via ${a2a:emit()}
+│   └── routes.camel.yaml               # A2A consumer + async + push via a2aSubTask
+├── breakfast-agent/
+│   ├── agent-card.json                  # Agent card, no security, streaming capable
+│   ├── application.properties           # Port 8086, no OAuth
+│   └── routes.camel.yaml               # A2A consumer + emitOnError failure demo
 ├── assistant/
 │   ├── agent-card.json                  # Agent card for the orchestrator
 │   ├── MorningBriefingAggregator.java   # Aggregates weather+news+fortune into JSON
@@ -482,7 +586,8 @@ camel-a2a-morning-routine/
 │       │   ├── briefing.ts              # /api/morning-briefing → calls assistant
 │       │   ├── traffic.ts               # /api/traffic-submit + /api/traffic-status (GetTask polling)
 │       │   ├── email.ts                 # /api/email-stream (SSE proxy via sendMessageStream)
-│       │   └── package.ts              # /api/package-track + /webhook/package (push notifications)
+│       │   ├── package.ts               # /api/package-track + /webhook/package (push notifications)
+│       │   └── breakfast.ts             # /api/breakfast-stream (emitOnError failure stream)
 │       └── services/
 │           ├── a2a-clients.ts           # A2A JS SDK client factory (plain + OIDC)
 │           ├── oidc.ts                  # Keycloak token management with caching

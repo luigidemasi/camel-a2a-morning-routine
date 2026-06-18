@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard
+  labels:
+    app: a2a-morning-routine
+    component: dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dashboard
+  template:
+    metadata:
+      labels:
+        app: dashboard
+        app.kubernetes.io/part-of: a2a-morning-routine
+    spec:
+      initContainers:
+        - name: wait-for-assistant
+          image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+          command: ['sh', '-c']
+          args:
+            - |
+              until curl -f http://assistant:8090/.well-known/agent-card.json; do
+                echo "Waiting for assistant..."
+                sleep 5
+              done
+              echo "Assistant is ready!"
+      containers:
+        - name: dashboard
+          image: image-registry.openshift-image-registry.svc:5000/a2a-morning-routine/dashboard:latest
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: ASSISTANT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: dashboard-config
+                  key: ASSISTANT_URL
+            - name: TRAFFIC_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: dashboard-config
+                  key: TRAFFIC_URL
+            - name: EMAIL_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: dashboard-config
+                  key: EMAIL_URL
+            - name: PACKAGE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: dashboard-config
+                  key: PACKAGE_URL
+            - name: BREAKFAST_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: dashboard-config
+                  key: BREAKFAST_URL
+            - name: KEYCLOAK_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: dashboard-config
+                  key: KEYCLOAK_URL
+            - name: KEYCLOAK_REALM
+              valueFrom:
+                configMapKeyRef:
+                  name: dashboard-config
+                  key: KEYCLOAK_REALM
+            - name: KEYCLOAK_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: dashboard-config
+                  key: KEYCLOAK_CLIENT_ID
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom:
+                configMapKeyRef:
+                  name: dashboard-config
+                  key: KEYCLOAK_CLIENT_SECRET
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "192Mi"
+              cpu: "100m"
+            limits:
+              memory: "192Mi"
+              cpu: "200m"

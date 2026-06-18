@@ -2,7 +2,7 @@
 # camel-jbang: dependency=camel:undertow
 #
 # Email Digest Agent - scans inbox via A2A protocol
-# Pure YAML agent using ${a2a:emit()} for SSE streaming
+# Pure YAML agent using a2aSubTask for scoped SSE progress
 # Uses Undertow for real-time SSE streaming
 
 - route:
@@ -14,22 +14,22 @@
         httpServerComponent: undertow
         validateAuth: false
       steps:
-        - script:
-            simple: "${a2a:emit('📧 Connecting to inbox...')}"
-        - delay:
-            simple: ${random(1500, 4500)}
-        - script:
-            simple: "${a2a:emit('📬 Found 12 unread messages...')}"
-        - delay:
-            simple: ${random(1500, 4500)}
-        - script:
-            simple: "${a2a:emit('🔍 Prioritizing by sender and subject...')}"
-        - delay:
-            simple: ${random(1500, 4500)}
-        - script:
-            simple: "${a2a:emit('⚡ 3 urgent, 5 normal, 4 low priority')}"
-        - delay:
-            simple: ${random(1500, 4500)}
+        - a2aSubTask:
+            emitBefore: "📧 Connecting to inbox..."
+            emitAfter: "📬 Found 12 unread messages..."
+            emitOnError: "📧 Inbox scan failed: ${exception.message}"
+            steps:
+              - delay:
+                  simple: ${random(1500, 4500)}
+        - a2aSubTask:
+            emitBefore: "🔍 Prioritizing by sender and subject..."
+            emitAfter: "⚡ 3 urgent, 5 normal, 4 low priority"
+            emitOnError: "🔍 Email prioritization failed: ${exception.message}"
+            steps:
+              - delay:
+                  simple: ${random(1500, 4500)}
+              - log:
+                  message: "Email priorities computed"
         - setBody:
             constant: |
               📧 Email Digest:

@@ -1,5 +1,6 @@
 # Morning Routine Assistant - A2A orchestration agent
-# Multicasts to weather, news, and fortune agents and aggregates responses
+#
+  Multicasts to weather, news, and fortune agents and aggregates responses
 # historyLength caps how many prior messages are retained in multi-turn context
 
 - route:
