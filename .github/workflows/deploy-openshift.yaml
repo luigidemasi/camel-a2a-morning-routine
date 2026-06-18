@@ -1,0 +1,99 @@
+name: Deploy to OpenShift
+
+# Trigger on push to main branch or manual workflow dispatch
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  OPENSHIFT_NAMESPACE: a2a-morning-routine
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Install OpenShift CLI using Red Hat's official action
+      - name: Install OpenShift CLI
+        uses: redhat-actions/openshift-tools-installer@v1
+        with:
+          oc: latest
+
+      # Login to OpenShift using secrets
+      # IMPORTANT: Configure these secrets in GitHub repo settings:
+      # - OPENSHIFT_SERVER: Your OpenShift API server URL (e.g., https://api.sandbox-m2.ll9k.p1.openshiftapps.com:6443)
+      # - OPENSHIFT_TOKEN: Your authentication token (get from "oc login --token=...")
+      - name: Login to OpenShift
+        run: |
+          oc login --token=${{ secrets.OPENSHIFT_TOKEN }} --server=${{ secrets.OPENSHIFT_SERVER }}
+          oc project ${{ env.OPENSHIFT_NAMESPACE }} || oc new-project ${{ env.OPENSHIFT_NAMESPACE }}
+
+      # Deploy Keycloak first (authentication server)
+      - name: Deploy Keycloak
+        run: |
+          echo "Deploying Keycloak..."
+          kubectl apply -k openshift/base/keycloak/
+          oc wait --for=condition=Ready pod -l app=keycloak --timeout=5m || echo "Keycloak not ready yet"
+
+      # Trigger parallel builds for all components
+      # This significantly reduces total build time (10-15 min vs 45-60 min sequential)
+      - name: Trigger parallel builds
+        run: |
+          echo "Starting builds for all agents and dashboard..."
+          oc start-build weather-agent &
+          oc start-build news-agent &
+          oc start-build fortune-agent &
+          oc start-build traffic-agent &
+          oc start-build email-agent &
+          oc start-build package-agent &
+          oc start-build breakfast-agent &
+          oc start-build assistant &
+          oc start-build dashboard &
+          wait
+
+          echo "Waiting for builds to complete..."
+          oc wait --for=condition=Complete build -l app=a2a-morning-routine --timeout=15m
+
+      # Deploy agents in sequence (consumer agents first, then assistant, then dashboard)
+      - name: Deploy agents
+        run: |
+          echo "Deploying consumer agents..."
+          for agent in weather-agent news-agent fortune-agent traffic-agent email-agent package-agent breakfast-agent; do
+            kubectl apply -k openshift/base/agents/${agent}/
+          done
+
+          echo "Waiting for consumer agents to be ready..."
+          sleep 30
+
+          echo "Deploying assistant..."
+          kubectl apply -k openshift/base/agents/assistant/
+
+          echo "Deploying dashboard..."
+          kubectl apply -k openshift/base/dashboard/
+
+      # Wait for all deployments to be ready
+      - name: Wait for deployment
+        run: |
+          echo "Waiting for all pods to be ready..."
+          oc wait --for=condition=Ready pod -l app=a2a-morning-routine --timeout=5m || echo "Some pods still starting"
+
+      # Output public URLs to GitHub Actions summary
+      - name: Get public URLs
+        run: |
+          echo "### Deployment Successful! 🎉" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Public URLs:**" >> $GITHUB_STEP_SUMMARY
+          oc get routes -o custom-columns=NAME:.metadata.name,URL:.spec.host --no-headers | \
+            awk '{print "- [" $1 "](https://" $2 ")"}' >> $GITHUB_STEP_SUMMARY
+
+      # Health check on dashboard
+      - name: Health check
+        run: |
+          DASHBOARD_URL=$(oc get route dashboard -o jsonpath='{.spec.host}')
+          echo "Testing dashboard at https://${DASHBOARD_URL}"
+          curl -f -k https://${DASHBOARD_URL} || exit 1
+          echo "✅ Dashboard is healthy!"
