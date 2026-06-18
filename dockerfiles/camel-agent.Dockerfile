@@ -6,9 +6,12 @@ FROM registry.access.redhat.com/ubi9/openjdk-21:latest
 ENV CAMEL_VERSION=${CAMEL_VERSION}
 
 RUN curl -Ls https://sh.jbang.dev | bash -s - app install --fresh --force jbang && \
+    export PATH="$HOME/.jbang/bin:$PATH" && \
     mkdir -p $HOME/.jbang && \
     echo '{"trustedSources": ["https://github.com/apache/camel/"]}' > $HOME/.jbang/trusted-sources.json && \
     jbang app install camel@apache/camel
+
+ENV PATH="$HOME/.jbang/bin:$PATH"
 
 WORKDIR /app
 
