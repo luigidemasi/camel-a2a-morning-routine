@@ -10,24 +10,44 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: keycloak
+      app: a2a-morning-routine
+      component: keycloak
   template:
     metadata:
       labels:
-        app: keycloak
+        app: a2a-morning-routine
+        component: keycloak
         app.kubernetes.io/part-of: a2a-morning-routine
     spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: keycloak
           image: quay.io/keycloak/keycloak:26.2.4
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           env:
             - name: KC_BOOTSTRAP_ADMIN_USERNAME
-              value: admin
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-admin
+                  key: admin-username
             - name: KC_BOOTSTRAP_ADMIN_PASSWORD
-              value: admin
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-admin
+                  key: admin-password
           args:
-            - start-dev
+            - start
             - --import-realm
+            - --http-enabled=true
+            - --hostname-strict=false
+            - --proxy-headers=xforwarded
           ports:
             - containerPort: 8080
               name: http
@@ -66,6 +86,7 @@ spec:
           app: a2a-morning-routine
           component: keycloak
       spec:
+        storageClassName: ""
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
