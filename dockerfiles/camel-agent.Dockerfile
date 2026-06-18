@@ -3,6 +3,8 @@ ARG CAMEL_VERSION=4.21.0-SNAPSHOT
 
 FROM registry.access.redhat.com/ubi9/openjdk-21:latest
 
+ENV CAMEL_VERSION=${CAMEL_VERSION}
+
 RUN curl -Ls https://sh.jbang.dev | bash -s - app install camel@apache/camel
 
 WORKDIR /app
