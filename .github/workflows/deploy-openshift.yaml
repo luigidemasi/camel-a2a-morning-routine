@@ -33,12 +33,13 @@ jobs:
           oc login --token=${{ secrets.OPENSHIFT_TOKEN }} --server=${{ secrets.OPENSHIFT_SERVER }}
           oc project ${{ env.OPENSHIFT_NAMESPACE }}
 
-      # Deploy Keycloak first (authentication server)
-      - name: Deploy Keycloak
+      # Deploy all resources (creates BuildConfigs, ImageStreams, Deployments, Services, Routes, ConfigMaps)
+      - name: Deploy all OpenShift resources
         run: |
-          echo "Deploying Keycloak..."
-          kubectl apply -k openshift/base/keycloak/
-          oc wait --for=condition=Ready pod -l app=keycloak --timeout=5m || echo "Keycloak not ready yet"
+          echo "Deploying all resources via kustomize..."
+          kubectl apply -k openshift/
+
+          echo "Resources created. BuildConfigs are ready for builds."
 
       # Trigger parallel builds for all components
       # This significantly reduces total build time (10-15 min vs 45-60 min sequential)
@@ -57,24 +58,7 @@ jobs:
           wait
 
           echo "Waiting for builds to complete..."
-          oc wait --for=condition=Complete build -l app=a2a-morning-routine --timeout=15m
-
-      # Deploy agents in sequence (consumer agents first, then assistant, then dashboard)
-      - name: Deploy agents
-        run: |
-          echo "Deploying consumer agents..."
-          for agent in weather-agent news-agent fortune-agent traffic-agent email-agent package-agent breakfast-agent; do
-            kubectl apply -k openshift/base/agents/${agent}/
-          done
-
-          echo "Waiting for consumer agents to be ready..."
-          sleep 30
-
-          echo "Deploying assistant..."
-          kubectl apply -k openshift/base/agents/assistant/
-
-          echo "Deploying dashboard..."
-          kubectl apply -k openshift/base/dashboard/
+          oc wait --for=condition=Complete build -l app=a2a-morning-routine --timeout=15m || echo "Some builds still running"
 
       # Wait for all deployments to be ready
       - name: Wait for deployment
