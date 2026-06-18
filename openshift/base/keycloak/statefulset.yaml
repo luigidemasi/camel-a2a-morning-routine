@@ -1,12 +1,11 @@
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
   name: keycloak
   labels:
     app: a2a-morning-routine
     component: keycloak
 spec:
-  serviceName: keycloak
   replicas: 1
   selector:
     matchLabels:
@@ -52,8 +51,6 @@ spec:
             - containerPort: 8080
               name: http
           volumeMounts:
-            - name: keycloak-data
-              mountPath: /opt/keycloak/data
             - name: realm-config
               mountPath: /opt/keycloak/data/import
           livenessProbe:
@@ -79,15 +76,3 @@ spec:
         - name: realm-config
           configMap:
             name: keycloak-realm
-  volumeClaimTemplates:
-    - metadata:
-        name: keycloak-data
-        labels:
-          app: a2a-morning-routine
-          component: keycloak
-      spec:
-        storageClassName: ""
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 1Gi

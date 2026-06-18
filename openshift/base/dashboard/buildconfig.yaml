@@ -9,8 +9,9 @@ spec:
   source:
     type: Git
     git:
-      uri: https://github.com/YOUR_USERNAME/camel-a2a-morning-routine.git
+      uri: https://github.com/ldemasi/a2a-examples.git
       ref: main
+    contextDir: camel-a2a-morning-routine
   strategy:
     type: Docker
     dockerStrategy:
